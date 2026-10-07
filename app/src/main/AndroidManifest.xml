@@ -2,10 +2,12 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-      NOTE: the keyboard process deliberately has NO INTERNET permission.
-      Model download is performed by an explicit user action in Settings,
-      using the system DownloadManager, which owns its own network access.
+      INTERNET is used ONLY by the in-app downloader for model and language
+      packs, which run when you explicitly tap Download. The keyboard itself
+      never sends what you type anywhere: no telemetry, no accounts, no cloud.
+      The app stores its state in app-private files on the device.
     -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".App"
@@ -44,6 +46,11 @@
             android:name=".settings.ThemeActivity"
             android:exported="false"
             android:label="@string/theme_title" />
+
+        <activity
+            android:name=".settings.LanguagesActivity"
+            android:exported="false"
+            android:label="@string/languages_title" />
 
         <activity
             android:name=".settings.KeyboardSettingsActivity"

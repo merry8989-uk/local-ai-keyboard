@@ -49,8 +49,8 @@ android {
         applicationId = "com.merry8989.localaikeyboard"
         minSdk = 29
         targetSdk = 34
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
 
         // arm64 only: the on-device LLM runtime is 64-bit.
         ndk {
@@ -109,6 +109,7 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
 
     // On-device LLM runtime (Gemma / Qwen / Phi via the MediaPipe LLM Inference API).
     implementation("com.google.mediapipe:tasks-genai:0.10.24")

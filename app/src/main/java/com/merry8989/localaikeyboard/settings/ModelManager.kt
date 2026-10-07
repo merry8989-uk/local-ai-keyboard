@@ -1,9 +1,11 @@
 package com.merry8989.localaikeyboard.settings
 
-import android.app.DownloadManager
 import android.content.Context
-import android.net.Uri
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 /** One downloadable on-device model. */
 data class ModelSpec(
@@ -17,18 +19,15 @@ data class ModelSpec(
 }
 
 /**
- * Owns the on-device model files: which are present, how to fetch them, how to
- * delete them. Downloads go through the system DownloadManager (a separate
- * process), which is why the keyboard itself needs no INTERNET permission.
+ * Owns the on-device model files and downloads them.
  *
- * Model URLs below were verified reachable and ungated. They are Hugging Face
- * "resolve" URLs; the file format is the `.task` bundle the MediaPipe LLM
- * Inference runtime reads.
+ * Downloads are done **in-app** (not via the system DownloadManager) so the user
+ * sees real progress and real error messages instead of a silent failure. Files
+ * live in app-private storage, so no storage permission is needed.
  */
 class ModelManager(private val context: Context) {
 
-    val modelsDir: File =
-        File(context.getExternalFilesDir(null) ?: context.filesDir, "models").apply { mkdirs() }
+    val modelsDir: File = File(context.filesDir, "models").apply { mkdirs() }
 
     fun fileFor(spec: ModelSpec): File = File(modelsDir, spec.fileName)
 
@@ -43,21 +42,74 @@ class ModelManager(private val context: Context) {
 
     fun activeModelPath(): String? = modelPath(installedSpec())
 
-    fun delete(spec: ModelSpec): Boolean = fileFor(spec).delete()
+    fun delete(spec: ModelSpec): Boolean {
+        File(modelsDir, spec.fileName + ".part").delete()
+        return fileFor(spec).delete()
+    }
+
+    /** Remove any leftover partial downloads. */
+    fun clearPartials() {
+        modelsDir.listFiles()?.filter { it.name.endsWith(".part") }?.forEach { it.delete() }
+    }
 
     /**
-     * Start a model download. Returns the DownloadManager request id, or -1 if
-     * the download manager is unavailable.
+     * Download [spec] to app-private storage, reporting 0..100 progress.
+     * [onProgress] is invoked on a background thread.
      */
-    fun enqueueDownload(spec: ModelSpec): Long {
-        val request = DownloadManager.Request(Uri.parse(spec.url))
-            .setTitle("Local AI Keyboard model")
-            .setDescription(spec.fileName)
-            .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-            .setDestinationInExternalFilesDir(context, null, "models/${spec.fileName}")
-        val dm = context.getSystemService(DownloadManager::class.java) ?: return -1L
-        return dm.enqueue(request)
-    }
+    suspend fun download(spec: ModelSpec, onProgress: (Int) -> Unit): Result<File> =
+        withContext(Dispatchers.IO) {
+            val dest = fileFor(spec)
+            val part = File(modelsDir, spec.fileName + ".part")
+            try {
+                part.delete()
+                val conn = (URL(spec.url).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 30_000
+                    readTimeout = 30_000
+                    instanceFollowRedirects = true
+                    setRequestProperty("User-Agent", "LocalAIKeyboard/1.0")
+                }
+                conn.connect()
+                val code = conn.responseCode
+                if (code !in 200..299) {
+                    conn.disconnect()
+                    return@withContext Result.failure(
+                        Exception("Server returned HTTP $code. The link may have moved or need sign-in.")
+                    )
+                }
+                val total = conn.contentLengthLong
+                conn.inputStream.use { input ->
+                    part.outputStream().use { out ->
+                        val buf = ByteArray(64 * 1024)
+                        var read: Int
+                        var done = 0L
+                        var lastPct = -1
+                        while (input.read(buf).also { read = it } != -1) {
+                            out.write(buf, 0, read)
+                            done += read
+                            if (total > 0) {
+                                val pct = ((done * 100) / total).toInt()
+                                if (pct != lastPct) {
+                                    lastPct = pct
+                                    onProgress(pct)
+                                }
+                            }
+                        }
+                    }
+                }
+                conn.disconnect()
+
+                dest.delete()
+                if (!part.renameTo(dest)) {
+                    part.copyTo(dest, overwrite = true)
+                    part.delete()
+                }
+                if (isInstalled(spec)) Result.success(dest)
+                else Result.failure(Exception("Downloaded file looks incomplete (${dest.length()} bytes)."))
+            } catch (t: Throwable) {
+                part.delete()
+                Result.failure(t)
+            }
+        }
 
     companion object {
         private const val HF = "https://huggingface.co/litert-community"

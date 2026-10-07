@@ -128,6 +128,22 @@ class ThemePrefs(context: Context) {
 
     fun theme(): KeyboardTheme = ThemeRepository.byId(themeId)
 
+    // ---- languages -----------------------------------------------------------
+
+    /** Enabled language pack ids. English is always on. */
+    var enabledLanguages: Set<String>
+        get() = sp.getStringSet(KEY_LANGS, DEFAULT_LANGS) ?: DEFAULT_LANGS
+        set(value) {
+            val withEnglish = value + "en"
+            sp.edit().putStringSet(KEY_LANGS, withEnglish).apply()
+        }
+
+    // ---- clipboard -----------------------------------------------------------
+
+    var clipboardHistory: Boolean
+        get() = sp.getBoolean(KEY_CLIPBOARD, true)
+        set(value) = sp.edit().putBoolean(KEY_CLIPBOARD, value).apply()
+
     fun keyStyle(): KeyStyle = KeyStyle(
         cornerRadiusDp = cornerRadiusDp,
         outlineWidthDp = outlineWidthDp,
@@ -147,5 +163,8 @@ class ThemePrefs(context: Context) {
         const val KEY_OUTLINE_W = "key_outline_width"
         const val KEY_OUTLINE_C = "key_outline_color"
         const val KEY_KEY_HEIGHT = "key_height"
+        const val KEY_LANGS = "enabled_languages"
+        const val KEY_CLIPBOARD = "clipboard_history"
+        val DEFAULT_LANGS = setOf("en", "hi-roman")
     }
 }

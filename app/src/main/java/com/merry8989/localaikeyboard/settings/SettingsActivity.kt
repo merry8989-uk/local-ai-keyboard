@@ -8,28 +8,41 @@ import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
+import androidx.lifecycle.lifecycleScope
 import com.merry8989.localaikeyboard.App
 import com.merry8989.localaikeyboard.ime.ThemePrefs
+import kotlinx.coroutines.launch
 
 /**
- * The hub. Mirrors the usual keyboard-app layout: a Set up section, an AI model
- * section, then categories (Languages, Theme, Keyboard, Typing, Gestures,
- * Clipboard, Emojis, Stickers, About).
+ * The hub: Set up, an AI model section with real download progress, then
+ * categories (Languages, Theme, Keyboard, Typing, Gestures, Clipboard, Emoji,
+ * Personal dictionary, Stickers, About).
  */
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var prefs: ThemePrefs
+    private lateinit var status: TextView
+    private lateinit var progress: ProgressBar
+    private var downloading = false
+
     private val models get() = App.instance.modelManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = ThemePrefs(this)
+        models.clearPartials()
         setContentView(buildUi())
+    }
+
+    override fun onResume() {
+        super.onResume()
+        status.text = statusText()
     }
 
     private fun buildUi(): View {
@@ -39,7 +52,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         root.addView(heading("Local AI Keyboard"))
-        root.addView(sub("An offline keyboard with on-device AI. Nothing you type ever leaves this phone."))
+        root.addView(sub("An offline keyboard with on-device AI. Your typing stays on this phone."))
 
         // ---- Set up
         root.addView(section("Set up"))
@@ -50,51 +63,20 @@ class SettingsActivity : AppCompatActivity() {
             getSystemService(InputMethodManager::class.java)?.showInputMethodPicker()
         })
 
-        // ---- Categories
-        root.addView(section("Settings"))
-        root.addView(row("Languages", "English + Hinglish enabled") {
-            info("Languages", "English and Hinglish (Romanised Hindi) are active. Cycle with the हि key on the keyboard.")
-        })
-        root.addView(row("Theme", "Pick from 24 built-in themes") {
-            startActivity(Intent(this, ThemeActivity::class.java))
-        })
-        root.addView(row("Keyboard", "Key outlines, corners, height") {
-            startActivity(Intent(this, KeyboardSettingsActivity::class.java))
-        })
-        root.addView(row("Typing", "Autocorrect, capitalisation, feedback") {
-            info("Typing", "Autocorrect uses the on-device dictionary. Backspace right after an autocorrect undoes it.")
-        })
-        root.addView(toggle("Auto-correct", prefs.autoCorrect) { prefs.autoCorrect = it })
-        root.addView(toggle("Auto-capitalise", prefs.autoCapitalize) { prefs.autoCapitalize = it })
-        root.addView(toggle("Double-space for period", prefs.doubleSpacePeriod) { prefs.doubleSpacePeriod = it })
-        root.addView(toggle("Learn new words", prefs.learnWords) { prefs.learnWords = it })
-        root.addView(toggle("Sound on keypress", prefs.soundEnabled) { prefs.soundEnabled = it })
-        root.addView(toggle("Vibrate on keypress", prefs.vibrateEnabled) { prefs.vibrateEnabled = it })
-        root.addView(row("Gestures", "Swipe to delete a word") {
-            info("Gestures", "Hold ⌫ to keep deleting. Swipe left on ⌫ to delete a whole word.")
-        })
-        root.addView(row("Clipboard", "Private by design") {
-            info("Clipboard", "This keyboard does not read or store your clipboard. Stickers you copy are written only when you tap them.")
-        })
-        root.addView(row("Emoji", "Tap ☺ on the keyboard") {
-            info("Emoji", "Tap ☺ for prebuilt emoji — they insert into any text field. Long-press ☺ for stickers & media.")
-        })
-        root.addView(row("Personal dictionary", "Words learned on this device") {
-            startActivity(Intent(this, DictionaryActivity::class.java))
-        })
-        root.addView(row("Stickers & media", "Add photos, GIFs, PNGs") {
-            startActivity(Intent(this, StickerActivity::class.java))
-        })
-
-        // ---- Model
+        // ---- Model (with progress)
         root.addView(section("On-device AI model"))
-        val status = sub(statusText())
+        status = sub(statusText())
         root.addView(status)
+        progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
+            max = 100
+            visibility = View.GONE
+        }
+        root.addView(progress, LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        ))
         for (spec in ModelManager.AVAILABLE) {
             root.addView(button("Download ${spec.name} (${spec.approxLabel})") {
-                val id = models.enqueueDownload(spec)
-                if (id == -1L) toast("Download could not start.") else
-                    toast("Downloading ${spec.name}. Reopen this screen when it finishes.")
+                startDownload(spec)
             })
         }
         root.addView(button("Delete downloaded models") {
@@ -104,16 +86,88 @@ class SettingsActivity : AppCompatActivity() {
             toast("Deleted $n model(s).")
         })
 
+        // ---- Categories
+        root.addView(section("Settings"))
+        root.addView(row("Languages", "English on by default") {
+            startActivity(Intent(this, LanguagesActivity::class.java))
+        })
+        root.addView(row("Theme", "Pick from 24 built-in themes") {
+            startActivity(Intent(this, ThemeActivity::class.java))
+        })
+        root.addView(row("Keyboard", "Key outlines, corners, height") {
+            startActivity(Intent(this, KeyboardSettingsActivity::class.java))
+        })
+        root.addView(row("Typing", "Autocorrect, capitalisation, feedback") {
+            info("Backspace right after an autocorrect undoes it. Long-press ✦ for the clipboard.")
+        })
+        root.addView(toggle("Auto-correct", prefs.autoCorrect) { prefs.autoCorrect = it })
+        root.addView(toggle("Auto-capitalise", prefs.autoCapitalize) { prefs.autoCapitalize = it })
+        root.addView(toggle("Double-space for period", prefs.doubleSpacePeriod) { prefs.doubleSpacePeriod = it })
+        root.addView(toggle("Learn new words", prefs.learnWords) { prefs.learnWords = it })
+        root.addView(toggle("Sound on keypress", prefs.soundEnabled) { prefs.soundEnabled = it })
+        root.addView(toggle("Vibrate on keypress", prefs.vibrateEnabled) { prefs.vibrateEnabled = it })
+        root.addView(row("Gestures", "Swipe to delete a word") {
+            info("Hold ⌫ to keep deleting. Swipe left on ⌫ to delete a whole word.")
+        })
+        root.addView(row("Clipboard", "Paste what you copied") {
+            info("Tap ✦ to open AI actions; long-press ✦ for the clipboard. History is kept in memory only.")
+        })
+        root.addView(toggle("Clipboard history", prefs.clipboardHistory) { prefs.clipboardHistory = it })
+        root.addView(row("Emoji", "Tap ☺ on the keyboard") {
+            info("Tap ☺ for prebuilt emoji — they insert into any text field. Long-press ☺ for stickers & media.")
+        })
+        root.addView(row("Personal dictionary", "Words learned on this device") {
+            startActivity(Intent(this, DictionaryActivity::class.java))
+        })
+        root.addView(row("Stickers & media", "Add photos, GIFs, PNGs") {
+            startActivity(Intent(this, StickerActivity::class.java))
+        })
+
         root.addView(section("About"))
-        root.addView(sub("Local AI Keyboard 0.1.0 — offline, privacy-first. No accounts, no telemetry."))
+        root.addView(sub("Local AI Keyboard 0.4.0 — offline by design. No accounts, no telemetry."))
+        root.addView(sub("The network is used only when you tap Download for a model or language pack."))
 
         return ScrollView(this).apply { addView(root) }
     }
 
+    private fun startDownload(spec: ModelSpec) {
+        if (downloading) {
+            toast("A download is already running.")
+            return
+        }
+        downloading = true
+        progress.visibility = View.VISIBLE
+        progress.progress = 0
+        status.text = "Starting download of ${spec.name}…"
+
+        lifecycleScope.launch {
+            val result = models.download(spec) { pct ->
+                runOnUiThread {
+                    progress.progress = pct
+                    status.text = "Downloading ${spec.name}: $pct%"
+                }
+            }
+            downloading = false
+            progress.visibility = View.GONE
+            result
+                .onSuccess {
+                    status.text = statusText()
+                    toast("${spec.name} downloaded — AI actions are ready.")
+                }
+                .onFailure { e ->
+                    status.text = "Download failed: ${e.message}"
+                    toast("Download failed — see the message above.")
+                }
+        }
+    }
+
     private fun statusText(): String {
         val installed = models.installedSpec()
-        return if (installed != null) "Model ready: ${installed.name}. AI actions are available."
-        else "No model installed — AI actions are disabled until you download one."
+        return if (installed != null) {
+            "Model ready: ${installed.name}. AI actions are available."
+        } else {
+            "No model installed — AI actions are disabled until you download one."
+        }
     }
 
     // ---- view helpers --------------------------------------------------------
@@ -161,8 +215,7 @@ class SettingsActivity : AppCompatActivity() {
         return c
     }
 
-    private fun info(title: String, body: String) =
-        Toast.makeText(this, body, Toast.LENGTH_LONG).show()
+    private fun info(body: String) = Toast.makeText(this, body, Toast.LENGTH_LONG).show()
 
     private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_SHORT).show()
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()

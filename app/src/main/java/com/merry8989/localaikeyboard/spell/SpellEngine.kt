@@ -1,26 +1,49 @@
 package com.merry8989.localaikeyboard.spell
 
 import android.content.Context
+import com.merry8989.localaikeyboard.ime.ThemePrefs
 import com.merry8989.localaikeyboard.lingua.HinglishLexicon
 import com.merry8989.localaikeyboard.lingua.LanguageMode
+import com.merry8989.localaikeyboard.lingua.LanguagePacks
 import com.merry8989.localaikeyboard.lingua.PhoneticMatcher
 
 /**
- * The typing-time brain: one SymSpell index over English + Hinglish words, plus
- * a phonetic pass for Romanised Hindi, plus the user's own learned words.
- * Returns at most three candidates for the suggestion bar.
+ * The typing-time brain: one SymSpell index built from the enabled language
+ * packs, a phonetic pass for Romanised Hindi, the user's learned words, and
+ * next-word prediction from [LearnedStore].
  */
-class SpellEngine(context: Context, private val userDict: UserDictionary) {
+class SpellEngine(
+    private val context: Context,
+    private val userDict: UserDictionary,
+    private val prefs: ThemePrefs,
+    private val learned: LearnedStore,
+) {
 
     private val hinglish = HinglishLexicon(context)
-    private val sym: SymSpell = SymSpell(maxEditDistance = 2, prefixLength = 7).also { s ->
-        s.createDictionary(englishWords(context) + hinglish.entries)
+    private var sym: SymSpell = buildIndex()
+
+    /** Rebuild the dictionary after the enabled languages change. */
+    fun reload() {
+        sym = buildIndex()
     }
 
-    /**
-     * Ranked suggestions for the word currently being typed.
-     * [mode] biases the mix between English and Hinglish.
-     */
+    fun enabledLanguages(): Set<String> = prefs.enabledLanguages
+
+    private fun buildIndex(): SymSpell {
+        val entries = HashMap<String, Int>()
+        val enabled = prefs.enabledLanguages
+        for (pack in LanguagePacks.all) {
+            if (pack.id !in enabled) continue
+            val words = LanguagePacks.loadWords(context, pack)
+            val total = words.size.coerceAtLeast(1)
+            words.forEachIndexed { i, w ->
+                entries[w] = (entries[w] ?: 0) + (total - i) * 100
+            }
+        }
+        return SymSpell(maxEditDistance = 2, prefixLength = 7).also { it.createDictionary(entries) }
+    }
+
+    /** Ranked suggestions for the word currently being typed. */
     fun suggest(word: String, mode: LanguageMode): List<String> {
         val w = word.lowercase()
         if (w.isBlank()) return emptyList()
@@ -34,7 +57,6 @@ class SpellEngine(context: Context, private val userDict: UserDictionary) {
             results[s.term] = score
         }
 
-        // Phonetic boost: a Hinglish word that sounds like what was typed.
         if (mode != LanguageMode.ENGLISH) {
             for ((term, freq) in hinglish.entries) {
                 if (term == w) continue
@@ -44,7 +66,6 @@ class SpellEngine(context: Context, private val userDict: UserDictionary) {
             }
         }
 
-        // The user's own learned words get a strong boost.
         for ((term, freq) in userDict.all()) {
             if (term == w) continue
             if (editDistance(w, term, 2) <= 2) {
@@ -59,13 +80,22 @@ class SpellEngine(context: Context, private val userDict: UserDictionary) {
             .take(3)
     }
 
-    /** Remember a word the user typed (goes to the on-device dictionary). */
+    /**
+     * Next-word predictions given the word just before the cursor. Learns from
+     * what you actually type.
+     */
+    fun predictNext(previousWord: String): List<String> {
+        if (previousWord.isBlank()) return emptyList()
+        return learned.nextWords(previousWord, limit = 3)
+            .map { matchCase(previousWord, it) }
+    }
+
+    /** Remember a word the user typed. */
     fun learn(word: String) {
         val w = word.trim()
         if (w.length >= 3 && !sym.contains(w) && !hinglish.contains(w)) userDict.add(w)
     }
 
-    /** Apply the lightweight grammar rules to a finished sentence/paragraph. */
     fun correctText(text: String): String = GrammarRules.apply(text)
 
     private fun matchCase(typed: String, candidate: String): String =
@@ -90,15 +120,5 @@ class SpellEngine(context: Context, private val userDict: UserDictionary) {
             val tmp = prev; prev = cur; cur = tmp
         }
         return prev[b.length]
-    }
-
-    private fun englishWords(context: Context): Map<String, Int> {
-        val words = runCatching {
-            context.assets.open("en_words.txt").bufferedReader().useLines { lines ->
-                lines.map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }.toList()
-            }
-        }.getOrDefault(emptyList())
-        val total = words.size.coerceAtLeast(1)
-        return words.withIndex().associate { (i, w) -> w to (total - i) * 100 }
     }
 }

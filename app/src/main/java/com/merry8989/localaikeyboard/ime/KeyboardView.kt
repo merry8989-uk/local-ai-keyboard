@@ -28,6 +28,7 @@ class KeyboardView(
         fun onBackspaceHoldStop()
         fun onDeleteWord()
         fun onStickerRequest()
+        fun onClipboardRequest()
     }
 
     var theme: KeyboardTheme = ThemeRepository.default
@@ -113,6 +114,18 @@ class KeyboardView(
                 key.setOnLongClickListener {
                     haptic(it)
                     listener.onStickerRequest()
+                    true
+                }
+            }
+
+            KeyCode.AI -> {
+                key.setOnClickListener {
+                    haptic(it)
+                    listener.onKey(def, label)
+                }
+                key.setOnLongClickListener {
+                    haptic(it)
+                    listener.onClipboardRequest()
                     true
                 }
             }

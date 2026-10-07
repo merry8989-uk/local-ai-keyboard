@@ -24,11 +24,9 @@ import java.io.File
 
 /**
  * The keyboard. Wires everything together:
- *   KeyboardView  -> keys, themes, key outlines, long-press alternates, backspace
- *   SuggestionBar -> candidates + ✦
- *   EmojiPanel    -> emoji (inserted as text)
- *   AiPanel       -> on-device LLM actions
- *   StickerPanel  -> local stickers (copied to clipboard)
+ *   KeyboardView  -> keys, themes, outlines, long-press alternates, backspace
+ *   SuggestionBar -> candidates, next-word predictions + ✦
+ *   EmojiPanel / StickerPanel / ClipboardPanel / AiPanel -> the four side panels
  */
 class LocalAiInputMethodService :
     InputMethodService(),
@@ -43,6 +41,7 @@ class LocalAiInputMethodService :
     private lateinit var altStrip: AlternateStrip
     private lateinit var emojiPanel: EmojiPanel
     private lateinit var stickerPanel: StickerPanel
+    private lateinit var clipboardPanel: ClipboardPanel
     private lateinit var themePrefs: ThemePrefs
     private lateinit var stickerStore: StickerStore
 
@@ -76,6 +75,8 @@ class LocalAiInputMethodService :
             .apply { visibility = View.GONE }
         emojiPanel = EmojiPanel(this) { emoji -> commitText(emoji) }
             .apply { visibility = View.GONE }
+        clipboardPanel = ClipboardPanel(this) { text -> pasteClip(text) }
+            .apply { visibility = View.GONE }
         aiPanel = AiPanel(this, this).apply { visibility = View.GONE }
         stickerPanel = StickerPanel(this, stickerStore, ::onStickerPicked, ::openStickerManager)
             .apply { visibility = View.GONE }
@@ -89,6 +90,7 @@ class LocalAiInputMethodService :
             addView(suggestionBar, LinearLayout.LayoutParams(MATCH_PARENT, dp(46)))
             addView(altStrip, LinearLayout.LayoutParams(MATCH_PARENT, dp(52)))
             addView(emojiPanel, LinearLayout.LayoutParams(MATCH_PARENT, dp(200)))
+            addView(clipboardPanel, LinearLayout.LayoutParams(MATCH_PARENT, dp(150)))
             addView(aiPanel, LinearLayout.LayoutParams(MATCH_PARENT, dp(150)))
             addView(stickerPanel, LinearLayout.LayoutParams(MATCH_PARENT, dp(96)))
             addView(keyboardView, LinearLayout.LayoutParams(MATCH_PARENT, dp(themePrefs.keyHeightDp)))
@@ -108,12 +110,14 @@ class LocalAiInputMethodService :
         keyboardView.setCaps(false)
         applyKeyHeight()
         hidePanels()
+        if (themePrefs.clipboardHistory) app.clipboardStore.start()
         refreshSuggestions()
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
         suggestJob?.cancel()
         backspaceJob?.cancel()
+        app.clipboardStore.stop()
         super.onFinishInputView(finishingInput)
     }
 
@@ -135,8 +139,10 @@ class LocalAiInputMethodService :
             KeyCode.SPACE -> handleSpace()
             KeyCode.BACKSPACE -> bridge.backspace()
             KeyCode.ENTER -> {
+                val prev = wordBeforeCurrent()
                 bridge.commit("\n")
                 lastCorrection = null
+                app.learnedStore.observeWord(prev, "")   // no word after Enter
                 applyAutoCaps()
             }
             KeyCode.SHIFT -> {
@@ -168,8 +174,8 @@ class LocalAiInputMethodService :
         if (undoCorrection()) return
         backspaceJob?.cancel()
         backspaceJob = scope.launch {
-            bridge.backspace()          // one immediately
-            delay(380)                  // then repeat while held
+            bridge.backspace()
+            delay(380)
             while (isActive) {
                 bridge.backspace()
                 delay(55)
@@ -190,13 +196,19 @@ class LocalAiInputMethodService :
         toggleStickers()
     }
 
+    override fun onClipboardRequest() {
+        toggleClipboard()
+    }
+
     // ---- SuggestionBar.Listener ---------------------------------------------
 
     override fun onCandidate(text: String) {
         val word = bridge.currentWordBeforeCursor()
-        bridge.deleteBefore(word.length)
+        val prev = wordBeforeCurrent()
+        if (word.isNotEmpty()) bridge.deleteBefore(word.length)
         bridge.commit("$text ")
-        lastCorrection = Correction(word, text)
+        if (word.isNotEmpty()) lastCorrection = Correction(word, text)
+        app.learnedStore.observeWord(prev, text)
         suggestionBar.setCandidates(emptyList())
         lastTopCandidate = null
     }
@@ -245,6 +257,7 @@ class LocalAiInputMethodService :
         altStrip.hide()
         emojiPanel.hide()
         stickerPanel.hide()
+        clipboardPanel.hide()
     }
 
     private fun toggleEmoji() {
@@ -257,6 +270,22 @@ class LocalAiInputMethodService :
         val show = !stickerPanel.isShowing()
         hidePanels()
         if (show) stickerPanel.show(theme)
+    }
+
+    private fun toggleClipboard() {
+        val show = !clipboardPanel.isShowing()
+        hidePanels()
+        if (!show) return
+        val items = LinkedHashSet<String>()
+        app.clipboardStore.current()?.let { if (it.isNotBlank()) items.add(it) }
+        items.addAll(app.clipboardStore.recentItems())
+        clipboardPanel.show(theme, items.toList())
+    }
+
+    private fun pasteClip(text: String) {
+        bridge.commit(text)
+        clipboardPanel.hide()
+        refreshSuggestions()
     }
 
     private fun onStickerPicked(file: File) {
@@ -294,24 +323,30 @@ class LocalAiInputMethodService :
         }
 
         val word = bridge.currentWordBeforeCursor()
+        val prev = wordBeforeCurrent()
         val top = lastTopCandidate
+        val finalWord: String
         if (themePrefs.autoCorrect && word.isNotEmpty() && top != null &&
             !top.equals(word, ignoreCase = true)
         ) {
             bridge.deleteBefore(word.length)
             bridge.commit("$top ")
             lastCorrection = Correction(word, top)
+            finalWord = top
         } else {
             if (themePrefs.learnWords && word.length >= 3) app.spellEngine.learn(word)
             bridge.commit(" ")
             lastCorrection = null
+            finalWord = word
         }
+        // Learn what you actually use, for next-word prediction.
+        if (finalWord.isNotEmpty()) app.learnedStore.observeWord(prev, finalWord)
+
         suggestionBar.setCandidates(emptyList())
         lastTopCandidate = null
         applyAutoCaps()
     }
 
-    /** If the previous action was an autocorrect, backspace restores the original. */
     private fun undoCorrection(): Boolean {
         val c = lastCorrection ?: return false
         lastCorrection = null
@@ -323,6 +358,14 @@ class LocalAiInputMethodService :
             return true
         }
         return false
+    }
+
+    /** The word immediately before the one being typed. */
+    private fun wordBeforeCurrent(): String? {
+        val before = bridge.textBeforeCursor(128)
+        val stripped = before.dropLastWhile { it.isLetter() || it == '\'' }
+        val prev = stripped.trimEnd().takeLastWhile { it.isLetter() || it == '\'' }
+        return prev.ifEmpty { null }
     }
 
     private fun applyAutoCaps() {
@@ -360,8 +403,13 @@ class LocalAiInputMethodService :
         suggestJob = scope.launch {
             delay(delayMs)
             val word = bridge.currentWordBeforeCursor()
-            if (word.length < 1) {
-                suggestionBar.setCandidates(emptyList())
+            if (word.isEmpty()) {
+                // No partial word: predict the next word from what you've used.
+                val prev = wordBeforeCurrent()
+                val predictions = withContext(Dispatchers.Default) {
+                    if (prev == null) emptyList() else app.spellEngine.predictNext(prev)
+                }
+                suggestionBar.setCandidates(predictions)
                 lastTopCandidate = null
                 return@launch
             }
