@@ -6,6 +6,7 @@ import com.merry8989.localaikeyboard.ai.MediaPipeLlmEngine
 import com.merry8989.localaikeyboard.clip.ClipboardStore
 import com.merry8989.localaikeyboard.ime.ThemePrefs
 import com.merry8989.localaikeyboard.settings.ModelManager
+import com.merry8989.localaikeyboard.spell.CustomWordsStore
 import com.merry8989.localaikeyboard.spell.LearnedStore
 import com.merry8989.localaikeyboard.spell.SpellEngine
 import com.merry8989.localaikeyboard.spell.UserDictionary
@@ -21,6 +22,8 @@ class App : Application() {
     val userDictionary: UserDictionary by lazy { UserDictionary(this) }
 
     val learnedStore: LearnedStore by lazy { LearnedStore(this) }
+
+    val customWordsStore: CustomWordsStore by lazy { CustomWordsStore(this) }
 
     val spellEngine: SpellEngine by lazy { SpellEngine(this, userDictionary, prefs, learnedStore) }
 

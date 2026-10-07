@@ -58,6 +58,20 @@ class KeyboardSettingsActivity : AppCompatActivity() {
             "Insert a space after . , ? ! ; :", prefs.autoSpaceAfterPunctuation) {
             prefs.autoSpaceAfterPunctuation = it
         })
+        root.addView(TextView(this).apply {
+            text = "Custom Long Press Words"; textSize = 16f; setPadding(0, dp(12), 0, dp(2))
+        })
+        root.addView(TextView(this).apply {
+            text = "Add your own words to each key's long-press popup."
+            textSize = 12f; setPadding(0, 0, 0, dp(6))
+        })
+        root.addView(Button(this).apply {
+            text = "Manage custom long press words"
+            gravity = Gravity.START
+            setOnClickListener {
+                startActivity(android.content.Intent(this@KeyboardSettingsActivity, CustomLongPressActivity::class.java))
+            }
+        })
 
         // ---- appearance
         root.addView(section("Appearance"))

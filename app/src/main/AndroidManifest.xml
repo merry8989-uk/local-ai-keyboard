@@ -53,6 +53,16 @@
             android:label="@string/languages_title" />
 
         <activity
+            android:name=".settings.CustomLongPressActivity"
+            android:exported="false"
+            android:label="@string/custom_words_title" />
+
+        <activity
+            android:name=".settings.CustomWordsActivity"
+            android:exported="false"
+            android:label="@string/custom_words_title" />
+
+        <activity
             android:name=".settings.KeyboardSettingsActivity"
             android:exported="false"
             android:label="@string/keyboard_title" />

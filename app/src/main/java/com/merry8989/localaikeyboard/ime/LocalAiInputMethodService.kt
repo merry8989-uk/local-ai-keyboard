@@ -86,6 +86,9 @@ class LocalAiInputMethodService :
             this.keyStyle = themePrefs.keyStyle()
             this.includeSymbols = themePrefs.accentsIncludeSymbols
         }
+        keyboardView.customWordsProvider = { label ->
+            app.customWordsStore.words(customLangId(), label)
+        }
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -406,6 +409,12 @@ class LocalAiInputMethodService :
 
     private fun letterLayout(): List<List<KeyDef>> =
         KeyboardLayout.qwerty(themePrefs.numberRow, themePrefs.dotOrQuestion)
+
+    /** Which language's custom long-press words apply right now. */
+    private fun customLangId(): String = when (language) {
+        LanguageMode.HINGLISH -> "hi-roman"
+        else -> "en"
+    }
 
     private fun applyKeyHeight() {
         val lp = keyboardView.layoutParams ?: return

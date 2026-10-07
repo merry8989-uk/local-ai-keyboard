@@ -48,6 +48,9 @@ class KeyboardView(
     /** Include related symbols in long-press popups. */
     var includeSymbols: Boolean = true
 
+    /** Supplies custom long-press words for a key label (may be empty). */
+    var customWordsProvider: ((String) -> List<String>)? = null
+
     private val handler = Handler(Looper.getMainLooper())
     private var caps = false
     private var layout: List<List<KeyDef>> = KeyboardLayout.qwerty(false, false)
@@ -142,7 +145,9 @@ class KeyboardView(
 
             else -> {
                 val variants = if (def.code == KeyCode.CHAR) {
-                    AlternateKeys.variantsFor(label, includeSymbols)
+                    val base = AlternateKeys.variantsFor(label, includeSymbols)
+                    val custom = customWordsProvider?.invoke(label) ?: emptyList()
+                    base + custom.filter { it.isNotBlank() && it !in base }
                 } else {
                     emptyList()
                 }
