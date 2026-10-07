@@ -63,6 +63,37 @@ Model files (`.task` / `.litertlm` / `.gguf`) are **not** committed — they are
 large and license-bound. The app downloads them on request into app-private
 storage. See `settings/ModelManager.kt` for the URLs and checksums to configure.
 
+## Signing (updating without uninstalling)
+
+Android only lets an APK update an app if it is signed with the **same key** as
+the installed version. CI runners generate a *random* debug key on every run, so
+without this step each build would need an uninstall first. Sign with one stable
+key to fix that:
+
+1. Create a keystore once, and keep it safe — losing it means you can never
+   update the app again:
+
+   ```bash
+   keytool -genkeypair -v -keystore release.keystore \
+     -alias localkey -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. Base64-encode it and add four repository secrets
+   (Settings → Secrets and variables → Actions):
+
+   | Secret | Value |
+   |---|---|
+   | `KEYSTORE_BASE64` | output of `base64 -w0 release.keystore` |
+   | `KEYSTORE_PASSWORD` | the store password you chose |
+   | `KEY_ALIAS` | `localkey` |
+   | `KEY_PASSWORD` | the key password you chose |
+
+3. Push. The next APK is signed with your key, and from then on every build
+   installs straight over the previous one — no uninstall.
+
+For local builds, put the same four values in `gradle.properties` (or export
+them as environment variables) and Gradle signs the debug build with the same key.
+
 ## License
 
 TBD (add a `LICENSE` file before publishing).

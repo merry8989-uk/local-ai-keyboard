@@ -7,6 +7,30 @@ android {
     namespace = "com.merry8989.localaikeyboard"
     compileSdk = 34
 
+    // ---- Signing -------------------------------------------------------------
+    // If a keystore is supplied (via CI secrets or local gradle.properties),
+    // BOTH debug and release builds are signed with it. A single stable key
+    // means each new APK installs *over* the existing app — no uninstall needed.
+    // Without a keystore, everything falls back to the normal debug key.
+    val keystorePath = System.getenv("KEYSTORE_FILE")
+        ?: project.findProperty("KEYSTORE_FILE")?.toString()
+    val keystoreFile = keystorePath?.takeIf { it.isNotBlank() }?.let { file(it) }
+    val hasKeystore = keystoreFile?.exists() == true
+
+    signingConfigs {
+        if (hasKeystore) {
+            create("stable") {
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                    ?: project.findProperty("KEYSTORE_PASSWORD")?.toString()
+                keyAlias = System.getenv("KEY_ALIAS")
+                    ?: project.findProperty("KEY_ALIAS")?.toString()
+                keyPassword = System.getenv("KEY_PASSWORD")
+                    ?: project.findProperty("KEY_PASSWORD")?.toString()
+            }
+        }
+    }
+
     defaultConfig {
         applicationId = "com.merry8989.localaikeyboard"
         minSdk = 29
@@ -21,7 +45,11 @@ android {
     }
 
     buildTypes {
-        release {
+        getByName("debug") {
+            if (hasKeystore) signingConfig = signingConfigs.getByName("stable")
+        }
+        getByName("release") {
+            if (hasKeystore) signingConfig = signingConfigs.getByName("stable")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
