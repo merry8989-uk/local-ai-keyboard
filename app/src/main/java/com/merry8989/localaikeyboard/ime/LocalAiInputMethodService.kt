@@ -111,13 +111,17 @@ class LocalAiInputMethodService :
         keyboardView.setCaps(false)
         applyKeyHeight()
         hidePanels()
-        if (themePrefs.clipboardHistory) app.clipboardStore.start()
+        if (themePrefs.clipboardHistory) {
+            app.clipboardStore.onChange = { rebuildClipboardIfOpen() }
+            app.clipboardStore.start()
+        }
         refreshSuggestions()
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
         suggestJob?.cancel()
         backspaceJob?.cancel()
+        app.clipboardStore.onChange = null
         app.clipboardStore.stop()
         super.onFinishInputView(finishingInput)
     }
@@ -164,6 +168,7 @@ class LocalAiInputMethodService :
             KeyCode.EMOJI -> toggleEmoji()
             KeyCode.STICKER -> toggleStickers()
             KeyCode.SETTINGS -> openSettings()
+            KeyCode.CLIPBOARD -> toggleClipboard()
         }
     }
 
@@ -278,10 +283,15 @@ class LocalAiInputMethodService :
         val show = !clipboardPanel.isShowing()
         hidePanels()
         if (!show) return
-        val items = LinkedHashSet<String>()
-        app.clipboardStore.current()?.let { if (it.isNotBlank()) items.add(it) }
-        items.addAll(app.clipboardStore.recentItems())
-        clipboardPanel.show(theme, items.toList())
+        // Read the clipboard fresh, so anything you just copied shows up first.
+        app.clipboardStore.refresh()
+        clipboardPanel.show(theme, app.clipboardStore.allItems())
+    }
+
+    private fun rebuildClipboardIfOpen() {
+        if (clipboardPanel.isShowing()) {
+            clipboardPanel.show(theme, app.clipboardStore.allItems())
+        }
     }
 
     private fun pasteClip(text: String) {

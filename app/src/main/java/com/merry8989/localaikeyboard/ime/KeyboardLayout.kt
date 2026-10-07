@@ -1,7 +1,7 @@
 package com.merry8989.localaikeyboard.ime
 
 /** What a key does when tapped. */
-enum class KeyCode { CHAR, SHIFT, BACKSPACE, ENTER, SPACE, SYMBOLS, LANG, AI, EMOJI, STICKER, SETTINGS }
+enum class KeyCode { CHAR, SHIFT, BACKSPACE, ENTER, SPACE, SYMBOLS, LANG, AI, EMOJI, STICKER, SETTINGS, CLIPBOARD }
 
 /**
  * Logical description of one key. [output] is the text committed on tap;
@@ -24,14 +24,15 @@ object KeyboardLayout {
         s.map { KeyDef(it.toString(), output = it.toString(), weight = weight) }
 
     private fun actionRow(left: String): List<KeyDef> = listOf(
-        KeyDef(left, code = KeyCode.SYMBOLS, weight = 1.3f, isSpecial = true),
-        KeyDef("हि", code = KeyCode.LANG, weight = 0.9f, isSpecial = true),
-        KeyDef("✦", code = KeyCode.AI, weight = 0.9f, isSpecial = true),
-        KeyDef("☺", code = KeyCode.EMOJI, weight = 0.9f, isSpecial = true),
-        KeyDef("⚙", code = KeyCode.SETTINGS, weight = 0.9f, isSpecial = true),
-        KeyDef("space", output = " ", code = KeyCode.SPACE, weight = 2.8f),
-        KeyDef(".", output = "."),
-        KeyDef("↵", code = KeyCode.ENTER, weight = 1.3f, isSpecial = true),
+        KeyDef(left, code = KeyCode.SYMBOLS, weight = 1.25f, isSpecial = true),
+        KeyDef("हि", code = KeyCode.LANG, weight = 0.85f, isSpecial = true),
+        KeyDef("✦", code = KeyCode.AI, weight = 0.85f, isSpecial = true),
+        KeyDef("☺", code = KeyCode.EMOJI, weight = 0.85f, isSpecial = true),
+        KeyDef("📋", code = KeyCode.CLIPBOARD, weight = 0.85f, isSpecial = true),
+        KeyDef("⚙", code = KeyCode.SETTINGS, weight = 0.85f, isSpecial = true),
+        KeyDef("space", output = " ", code = KeyCode.SPACE, weight = 2.4f),
+        KeyDef(".", output = ".", weight = 0.9f),
+        KeyDef("↵", code = KeyCode.ENTER, weight = 1.25f, isSpecial = true),
     )
 
     /** Lowercase QWERTY with the action rows. */
