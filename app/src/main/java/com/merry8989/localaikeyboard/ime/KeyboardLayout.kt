@@ -1,7 +1,9 @@
 package com.merry8989.localaikeyboard.ime
 
 /** What a key does when tapped. */
-enum class KeyCode { CHAR, SHIFT, BACKSPACE, ENTER, SPACE, SYMBOLS, LANG, AI, EMOJI, STICKER, SETTINGS, CLIPBOARD }
+enum class KeyCode {
+    CHAR, SHIFT, BACKSPACE, ENTER, SPACE, SYMBOLS, LANG, AI, EMOJI, STICKER, SETTINGS, CLIPBOARD
+}
 
 /**
  * Logical description of one key. [output] is the text committed on tap;
@@ -16,39 +18,53 @@ data class KeyDef(
 )
 
 /**
- * Static key arrangements. Plain data, so layouts are easy to tweak.
+ * Key arrangements, built from options so settings (number row, ". ?") can
+ * shape the layout.
  */
 object KeyboardLayout {
 
     private fun row(s: String, weight: Float = 1f): List<KeyDef> =
         s.map { KeyDef(it.toString(), output = it.toString(), weight = weight) }
 
-    private fun actionRow(left: String): List<KeyDef> = listOf(
-        KeyDef(left, code = KeyCode.SYMBOLS, weight = 1.25f, isSpecial = true),
-        KeyDef("हि", code = KeyCode.LANG, weight = 0.85f, isSpecial = true),
-        KeyDef("✦", code = KeyCode.AI, weight = 0.85f, isSpecial = true),
-        KeyDef("☺", code = KeyCode.EMOJI, weight = 0.85f, isSpecial = true),
-        KeyDef("📋", code = KeyCode.CLIPBOARD, weight = 0.85f, isSpecial = true),
-        KeyDef("⚙", code = KeyCode.SETTINGS, weight = 0.85f, isSpecial = true),
-        KeyDef("space", output = " ", code = KeyCode.SPACE, weight = 2.4f),
-        KeyDef(".", output = ".", weight = 0.9f),
-        KeyDef("↵", code = KeyCode.ENTER, weight = 1.25f, isSpecial = true),
-    )
+    /** The optional number row shown above the letters. */
+    val numberRow: List<KeyDef> = row("1234567890")
 
-    /** Lowercase QWERTY with the action rows. */
-    val qwerty: List<List<KeyDef>> = listOf(
-        row("qwertyuiop"),
-        row("asdfghjkl"),
-        listOf(
-            KeyDef("⇧", code = KeyCode.SHIFT, weight = 1.5f, isSpecial = true)
-        ) + row("zxcvbnm") + listOf(
-            KeyDef("⌫", code = KeyCode.BACKSPACE, weight = 1.5f, isSpecial = true)
-        ),
-        actionRow("?123"),
-    )
+    private fun actionRow(left: String, dotOrQuestion: Boolean): List<KeyDef> {
+        val punct = if (dotOrQuestion) {
+            KeyDef("?", output = "?", weight = 0.9f)
+        } else {
+            KeyDef(".", output = ".", weight = 0.9f)
+        }
+        return listOf(
+            KeyDef(left, code = KeyCode.SYMBOLS, weight = 1.25f, isSpecial = true),
+            KeyDef("हि", code = KeyCode.LANG, weight = 0.85f, isSpecial = true),
+            KeyDef("✦", code = KeyCode.AI, weight = 0.85f, isSpecial = true),
+            KeyDef("☺", code = KeyCode.EMOJI, weight = 0.85f, isSpecial = true),
+            KeyDef("📋", code = KeyCode.CLIPBOARD, weight = 0.85f, isSpecial = true),
+            KeyDef("⚙", code = KeyCode.SETTINGS, weight = 0.85f, isSpecial = true),
+            KeyDef("space", output = " ", code = KeyCode.SPACE, weight = 2.4f),
+            punct,
+            KeyDef("↵", code = KeyCode.ENTER, weight = 1.25f, isSpecial = true),
+        )
+    }
+
+    /** Letter layout, optionally with a number row. */
+    fun qwerty(showNumberRow: Boolean, dotOrQuestion: Boolean): List<List<KeyDef>> {
+        val rows = listOf(
+            row("qwertyuiop"),
+            row("asdfghjkl"),
+            listOf(
+                KeyDef("⇧", code = KeyCode.SHIFT, weight = 1.5f, isSpecial = true)
+            ) + row("zxcvbnm") + listOf(
+                KeyDef("⌫", code = KeyCode.BACKSPACE, weight = 1.5f, isSpecial = true)
+            ),
+            actionRow("?123", dotOrQuestion),
+        )
+        return if (showNumberRow) listOf(numberRow) + rows else rows
+    }
 
     /** Symbols / numbers page, with an extra row of signs. */
-    val symbols: List<List<KeyDef>> = listOf(
+    fun symbols(dotOrQuestion: Boolean): List<List<KeyDef>> = listOf(
         row("1234567890"),
         row("@#\$%&*-+="),
         listOf(
@@ -58,6 +74,6 @@ object KeyboardLayout {
         ),
         row("\"'`~^|\\/;:"),
         row("₹€£¥¢©®™°"),
-        actionRow("ABC"),
+        actionRow("ABC", dotOrQuestion),
     )
 }

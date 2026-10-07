@@ -49,8 +49,8 @@ android {
         applicationId = "com.merry8989.localaikeyboard"
         minSdk = 29
         targetSdk = 34
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0"
 
         // arm64 only: the on-device LLM runtime is 64-bit.
         ndk {

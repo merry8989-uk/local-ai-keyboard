@@ -84,6 +84,7 @@ class LocalAiInputMethodService :
         keyboardView = KeyboardView(this, this).apply {
             this.theme = t
             this.keyStyle = themePrefs.keyStyle()
+            this.includeSymbols = themePrefs.accentsIncludeSymbols
         }
 
         return LinearLayout(this).apply {
@@ -107,7 +108,8 @@ class LocalAiInputMethodService :
         suggestionBar.setTheme(t)
         keyboardView.theme = t
         keyboardView.keyStyle = themePrefs.keyStyle()
-        keyboardView.setLayout(KeyboardLayout.qwerty)
+        keyboardView.includeSymbols = themePrefs.accentsIncludeSymbols
+        keyboardView.setLayout(letterLayout())
         keyboardView.setCaps(false)
         applyKeyHeight()
         hidePanels()
@@ -134,7 +136,9 @@ class LocalAiInputMethodService :
             KeyCode.CHAR -> {
                 lastCorrection = null
                 val out = if (caps) label else label.lowercase()
-                bridge.commit(out)
+                val punctuating = themePrefs.autoSpaceAfterPunctuation &&
+                    out.length == 1 && out[0] in ".?!,;:"
+                bridge.commit(if (punctuating) "$out " else out)
                 if (caps) {
                     caps = false
                     keyboardView.setCaps(false)
@@ -157,7 +161,8 @@ class LocalAiInputMethodService :
             KeyCode.SYMBOLS -> {
                 showingSymbols = !showingSymbols
                 keyboardView.setLayout(
-                    if (showingSymbols) KeyboardLayout.symbols else KeyboardLayout.qwerty
+                    if (showingSymbols) KeyboardLayout.symbols(themePrefs.dotOrQuestion)
+                    else letterLayout()
                 )
             }
             KeyCode.LANG -> cycleLanguage()
@@ -398,6 +403,9 @@ class LocalAiInputMethodService :
             keyboardView.setCaps(true)
         }
     }
+
+    private fun letterLayout(): List<List<KeyDef>> =
+        KeyboardLayout.qwerty(themePrefs.numberRow, themePrefs.dotOrQuestion)
 
     private fun applyKeyHeight() {
         val lp = keyboardView.layoutParams ?: return

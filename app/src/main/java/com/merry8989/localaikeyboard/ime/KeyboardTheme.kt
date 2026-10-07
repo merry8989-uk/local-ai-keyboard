@@ -128,6 +128,39 @@ class ThemePrefs(context: Context) {
 
     fun theme(): KeyboardTheme = ThemeRepository.byId(themeId)
 
+    // ---- layout / key behaviour ---------------------------------------------
+
+    /** Show a number row above the letter layout. */
+    var numberRow: Boolean
+        get() = sp.getBoolean(KEY_NUMBER_ROW, false)
+        set(value) = sp.edit().putBoolean(KEY_NUMBER_ROW, value).apply()
+
+    /** Long-press popups include related symbols as well as accents. */
+    var accentsIncludeSymbols: Boolean
+        get() = sp.getBoolean(KEY_ACCENT_SYMBOLS, true)
+        set(value) = sp.edit().putBoolean(KEY_ACCENT_SYMBOLS, value).apply()
+
+    /** Toggle the key next to Enter between '.' and '?'. */
+    var dotOrQuestion: Boolean
+        get() = sp.getBoolean(KEY_DOT_QUESTION, false)
+        set(value) = sp.edit().putBoolean(KEY_DOT_QUESTION, value).apply()
+
+    var autoSpaceAfterPunctuation: Boolean
+        get() = sp.getBoolean(KEY_AUTOSPACE, true)
+        set(value) = sp.edit().putBoolean(KEY_AUTOSPACE, value).apply()
+
+    var fontSizePercent: Int
+        get() = sp.getInt(KEY_FONT_SIZE, 100)
+        set(value) = sp.edit().putInt(KEY_FONT_SIZE, value).apply()
+
+    var keySpacingDp: Int
+        get() = sp.getInt(KEY_KEY_SPACING, 3)
+        set(value) = sp.edit().putInt(KEY_KEY_SPACING, value).apply()
+
+    var longPressDelayMs: Int
+        get() = sp.getInt(KEY_LONG_PRESS_DELAY, 300)
+        set(value) = sp.edit().putInt(KEY_LONG_PRESS_DELAY, value).apply()
+
     // ---- languages -----------------------------------------------------------
 
     /** Enabled language pack ids. English is always on. */
@@ -149,6 +182,9 @@ class ThemePrefs(context: Context) {
         outlineWidthDp = outlineWidthDp,
         outlineColor = outlineColor,
         keyHeightDp = keyHeightDp,
+        fontSizePercent = fontSizePercent,
+        keySpacingDp = keySpacingDp,
+        longPressDelayMs = longPressDelayMs,
     )
 
     private companion object {
@@ -165,6 +201,13 @@ class ThemePrefs(context: Context) {
         const val KEY_KEY_HEIGHT = "key_height"
         const val KEY_LANGS = "enabled_languages"
         const val KEY_CLIPBOARD = "clipboard_history"
+        const val KEY_NUMBER_ROW = "number_row"
+        const val KEY_ACCENT_SYMBOLS = "accents_include_symbols"
+        const val KEY_DOT_QUESTION = "dot_or_question"
+        const val KEY_AUTOSPACE = "autospace_after_punctuation"
+        const val KEY_FONT_SIZE = "font_size_percent"
+        const val KEY_KEY_SPACING = "key_spacing_dp"
+        const val KEY_LONG_PRESS_DELAY = "long_press_delay_ms"
         val DEFAULT_LANGS = setOf("en", "hi-roman")
     }
 }

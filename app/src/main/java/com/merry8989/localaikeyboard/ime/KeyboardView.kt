@@ -3,6 +3,8 @@ package com.merry8989.localaikeyboard.ime
 import android.content.Context
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.os.Handler
+import android.os.Looper
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -12,9 +14,9 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /**
- * A programmatic keyboard. Rows of [KeyDef] become weighted TextViews.
- * Handles: theming, key outlines, long-press alternates, backspace hold/swipe,
- * and long-press on ☺ to reach stickers.
+ * A programmatic keyboard. Handles theming, key outlines, font size, spacing,
+ * long-press popups (with a configurable delay), backspace hold/swipe, and the
+ * long-press actions on ☺ (stickers) and ✦ (clipboard).
  */
 class KeyboardView(
     context: Context,
@@ -43,8 +45,12 @@ class KeyboardView(
             render()
         }
 
+    /** Include related symbols in long-press popups. */
+    var includeSymbols: Boolean = true
+
+    private val handler = Handler(Looper.getMainLooper())
     private var caps = false
-    private var layout: List<List<KeyDef>> = KeyboardLayout.qwerty
+    private var layout: List<List<KeyDef>> = KeyboardLayout.qwerty(false, false)
 
     init {
         orientation = VERTICAL
@@ -66,6 +72,7 @@ class KeyboardView(
     fun isCaps() = caps
 
     private fun render() {
+        handler.removeCallbacksAndMessages(null)
         removeAllViews()
         setBackgroundColor(theme.background)
         for (rowDefs in layout) {
@@ -90,14 +97,17 @@ class KeyboardView(
             text = label
             gravity = Gravity.CENTER
             setTextColor(theme.keyText)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, if (label.length > 1) 13f else 20f)
+            setTextSize(
+                TypedValue.COMPLEX_UNIT_SP,
+                (if (label.length > 1) 13f else 20f) * (keyStyle.fontSizePercent / 100f)
+            )
             typeface = Typeface.DEFAULT
             isClickable = true
             isFocusable = false
             background = keyDrawable(
                 if (def.isSpecial) theme.specialKeyBackground else theme.keyBackground
             )
-            val m = dp(3)
+            val m = dp(keyStyle.keySpacingDp)
             layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, def.weight).apply {
                 setMargins(m, m, m, m)
             }
@@ -131,22 +141,59 @@ class KeyboardView(
             }
 
             else -> {
-                key.setOnClickListener {
-                    haptic(it)
-                    listener.onKey(def, label)
+                val variants = if (def.code == KeyCode.CHAR) {
+                    AlternateKeys.variantsFor(label, includeSymbols)
+                } else {
+                    emptyList()
                 }
-                val variants =
-                    if (def.code == KeyCode.CHAR) AlternateKeys.variantsFor(label) else emptyList()
                 if (variants.size > 1) {
-                    key.setOnLongClickListener {
+                    attachLongPress(key, def, label, variants)
+                } else {
+                    key.setOnClickListener {
                         haptic(it)
-                        listener.onAlternates(variants)
-                        true
+                        listener.onKey(def, label)
                     }
                 }
             }
         }
         return key
+    }
+
+    /** Long-press with a configurable delay, without swallowing normal taps. */
+    private fun attachLongPress(key: TextView, def: KeyDef, label: String, variants: List<String>) {
+        val fired = booleanArrayOf(false)
+        val runnable = Runnable {
+            fired[0] = true
+            haptic(key)
+            listener.onAlternates(variants)
+        }
+        key.setOnTouchListener { v, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    fired[0] = false
+                    v.isPressed = true
+                    handler.postDelayed(runnable, keyStyle.longPressDelayMs.toLong())
+                    false
+                }
+                MotionEvent.ACTION_UP -> {
+                    handler.removeCallbacks(runnable)
+                    v.isPressed = false
+                    if (!fired[0]) {
+                        haptic(v)
+                        listener.onKey(def, label)
+                    }
+                    fired[0] = false
+                    true
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    handler.removeCallbacks(runnable)
+                    v.isPressed = false
+                    fired[0] = false
+                    true
+                }
+                else -> false
+            }
+        }
     }
 
     private fun attachBackspaceTouch(key: TextView, def: KeyDef, label: String) {
