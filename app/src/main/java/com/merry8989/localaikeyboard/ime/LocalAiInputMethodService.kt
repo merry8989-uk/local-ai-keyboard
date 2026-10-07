@@ -9,6 +9,7 @@ import android.widget.Toast
 import com.merry8989.localaikeyboard.App
 import com.merry8989.localaikeyboard.ai.AiAction
 import com.merry8989.localaikeyboard.lingua.LanguageMode
+import com.merry8989.localaikeyboard.settings.SettingsActivity
 import com.merry8989.localaikeyboard.settings.StickerActivity
 import com.merry8989.localaikeyboard.stickers.StickerStore
 import kotlinx.coroutines.CoroutineScope
@@ -162,6 +163,7 @@ class LocalAiInputMethodService :
             }
             KeyCode.EMOJI -> toggleEmoji()
             KeyCode.STICKER -> toggleStickers()
+            KeyCode.SETTINGS -> openSettings()
         }
     }
 
@@ -296,6 +298,12 @@ class LocalAiInputMethodService :
     private fun openStickerManager() {
         startActivity(
             Intent(this, StickerActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
+
+    private fun openSettings() {
+        startActivity(
+            Intent(this, SettingsActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
 
