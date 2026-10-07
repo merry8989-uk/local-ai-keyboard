@@ -27,10 +27,12 @@ class MediaPipeLlmEngine(private val context: Context) : LlmEngine {
 
     override suspend fun load(modelPath: String) = withContext(AiDispatcher.dispatcher) {
         close()
+        // NOTE: in tasks-genai 0.10.24 the options builder exposes only
+        // setModelPath / setMaxTokens. Sampling params (topK, temperature)
+        // are not settable here in this version.
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelPath)
             .setMaxTokens(1024)
-            .setTemperature(0.8f)
             .build()
         inference = LlmInference.createFromOptions(context, options)
     }
