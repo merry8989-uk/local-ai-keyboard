@@ -29,7 +29,7 @@
                 android:resource="@xml/method" />
         </service>
 
-        <!-- Settings screen (also serves as the launcher entry point) -->
+        <!-- Settings hub (also the launcher entry point) -->
         <activity
             android:name=".settings.SettingsActivity"
             android:exported="true"
@@ -39,5 +39,26 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".settings.ThemeActivity"
+            android:exported="false"
+            android:label="@string/theme_title" />
+
+        <activity
+            android:name=".settings.StickerActivity"
+            android:exported="false"
+            android:label="@string/stickers_title" />
+
+        <!-- Shares local sticker files with chat apps via content:// URIs -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>

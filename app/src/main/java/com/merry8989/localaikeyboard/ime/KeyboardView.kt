@@ -1,37 +1,44 @@
 package com.merry8989.localaikeyboard.ime
 
 import android.content.Context
-import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
+import android.view.MotionEvent
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
-import com.merry8989.localaikeyboard.R
 
 /**
- * A programmatic keyboard. Rows of [KeyDef] become weighted TextViews inside
- * horizontal LinearLayouts, stacked vertically. Kept dependency-free so it can
- * be reused inside any IME.
+ * A programmatic keyboard. Rows of [KeyDef] become weighted TextViews.
+ * Handles: theming, long-press alternates, and backspace hold/swipe.
  */
 class KeyboardView(
     context: Context,
-    private val listener: KeyListener,
+    private val listener: Listener,
 ) : LinearLayout(context) {
 
-    fun interface KeyListener {
+    interface Listener {
         fun onKey(key: KeyDef, label: String)
+        fun onAlternates(variants: List<String>)
+        fun onBackspaceHoldStart()
+        fun onBackspaceHoldStop()
+        fun onDeleteWord()
     }
+
+    var theme: KeyboardTheme = ThemeRepository.default
+        set(value) {
+            field = value
+            render()
+        }
 
     private var caps = false
     private var layout: List<List<KeyDef>> = KeyboardLayout.qwerty
 
     init {
         orientation = VERTICAL
-        setBackgroundColor(color(R.color.kb_bg))
         val pad = dp(4)
         setPadding(pad, pad, pad, pad)
         render()
@@ -51,6 +58,7 @@ class KeyboardView(
 
     private fun render() {
         removeAllViews()
+        setBackgroundColor(theme.background)
         for (rowDefs in layout) {
             addView(buildRow(rowDefs), LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f))
         }
@@ -69,25 +77,68 @@ class KeyboardView(
 
     private fun buildKey(def: KeyDef): TextView {
         val label = displayLabel(def)
-        return TextView(context).apply {
+        val key = TextView(context).apply {
             text = label
             gravity = Gravity.CENTER
-            setTextColor(color(R.color.key_text))
+            setTextColor(theme.keyText)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, if (label.length > 1) 13f else 20f)
             typeface = Typeface.DEFAULT
             isClickable = true
             isFocusable = false
-            background = ContextCompat.getDrawable(
-                context,
-                if (def.isSpecial) R.drawable.key_special else R.drawable.key_normal
+            background = keyDrawable(
+                if (def.isSpecial) theme.specialKeyBackground else theme.keyBackground
             )
             val m = dp(3)
             layoutParams = LayoutParams(0, LayoutParams.MATCH_PARENT, def.weight).apply {
                 setMargins(m, m, m, m)
             }
-            setOnClickListener {
-                performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+        }
+
+        if (def.code == KeyCode.BACKSPACE) {
+            attachBackspaceTouch(key, def, label)
+        } else {
+            key.setOnClickListener {
+                haptic(it)
                 listener.onKey(def, label)
+            }
+            val variants = if (def.code == KeyCode.CHAR) AlternateKeys.variantsFor(label) else emptyList()
+            if (variants.size > 1) {
+                key.setOnLongClickListener {
+                    haptic(it)
+                    listener.onAlternates(variants)
+                    true
+                }
+            }
+        }
+        return key
+    }
+
+    private fun attachBackspaceTouch(key: TextView, def: KeyDef, label: String) {
+        var downX = 0f
+        var wordDeleted = false
+        key.setOnTouchListener { view, e ->
+            when (e.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = e.x
+                    wordDeleted = false
+                    view.isPressed = true
+                    listener.onBackspaceHoldStart()   // deletes once immediately, then repeats
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    if (!wordDeleted && e.x - downX < -dp(36)) {
+                        listener.onBackspaceHoldStop()
+                        listener.onDeleteWord()
+                        wordDeleted = true
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    listener.onBackspaceHoldStop()
+                    view.isPressed = false
+                    true
+                }
+                else -> false
             }
         }
     }
@@ -98,7 +149,15 @@ class KeyboardView(
         else -> def.label
     }
 
-    private fun color(res: Int) = ContextCompat.getColor(context, res)
-    private fun dp(v: Int): Int =
-        (v * resources.displayMetrics.density).toInt()
+    private fun haptic(v: View) {
+        v.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+    }
+
+    private fun keyDrawable(color: Int): GradientDrawable =
+        GradientDrawable().apply {
+            setColor(color)
+            cornerRadius = dp(8).toFloat()
+        }
+
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 }

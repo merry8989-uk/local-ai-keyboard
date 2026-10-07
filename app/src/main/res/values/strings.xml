@@ -13,6 +13,8 @@
     <string name="action_message">Message</string>
 
     <string name="settings_title">Local AI Keyboard</string>
+    <string name="theme_title">Theme</string>
+    <string name="stickers_title">Stickers &amp; media</string>
     <string name="enable_keyboard">Enable keyboard</string>
     <string name="model_section">On-device AI model</string>
     <string name="download_model">Download model</string>
