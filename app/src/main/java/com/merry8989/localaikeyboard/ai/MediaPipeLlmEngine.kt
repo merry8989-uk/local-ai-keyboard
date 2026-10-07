@@ -30,7 +30,6 @@ class MediaPipeLlmEngine(private val context: Context) : LlmEngine {
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(modelPath)
             .setMaxTokens(1024)
-            .setTopK(40)
             .setTemperature(0.8f)
             .build()
         inference = LlmInference.createFromOptions(context, options)
