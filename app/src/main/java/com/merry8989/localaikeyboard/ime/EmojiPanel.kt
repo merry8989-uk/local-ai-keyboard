@@ -23,8 +23,8 @@ class EmojiPanel(
 
     private val tabRow = LinearLayout(context)
     private val grid = LinearLayout(context)
-    private var theme: KeyboardTheme = ThemeRepository.default
-    private var current = 0
+    private var panelTheme: KeyboardTheme = ThemeRepository.default
+    private var selectedCategory = 0
 
     init {
         orientation = VERTICAL
@@ -47,7 +47,7 @@ class EmojiPanel(
     }
 
     fun show(theme: KeyboardTheme) {
-        this.theme = theme
+        panelTheme = theme
         setBackgroundColor(theme.background)
         buildTabs()
         buildGrid()
@@ -63,49 +63,51 @@ class EmojiPanel(
     private fun buildTabs() {
         tabRow.removeAllViews()
         EmojiData.categories.forEachIndexed { index, cat ->
-            val tv = TextView(context).apply {
-                text = cat.icon
-                gravity = Gravity.CENTER
-                setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
-                setPadding(dp(12), dp(4), dp(12), dp(4))
-                isClickable = true
-                setTextColor(if (index == current) theme.accent else theme.keyText)
-                background = GradientDrawable().apply {
-                    setColor(if (index == current) theme.keyBackground else theme.specialKeyBackground)
-                    cornerRadius = dp(6).toFloat()
-                }
-                setOnClickListener {
-                    current = index
-                    buildTabs()
-                    buildGrid()
-                }
+            val isSelected = index == selectedCategory
+            val bgColor = if (isSelected) panelTheme.keyBackground else panelTheme.specialKeyBackground
+            val fgColor = if (isSelected) panelTheme.accent else panelTheme.keyText
+
+            val tab = TextView(context)
+            tab.text = cat.icon
+            tab.gravity = Gravity.CENTER
+            tab.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            tab.setPadding(dp(12), dp(4), dp(12), dp(4))
+            tab.isClickable = true
+            tab.setTextColor(fgColor)
+            tab.background = GradientDrawable().apply {
+                setColor(bgColor)
+                cornerRadius = dp(6).toFloat()
             }
-            tabRow.addView(tv, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT).apply {
-                setMargins(dp(2), dp(4), dp(2), dp(4))
-            })
+            tab.setOnClickListener {
+                selectedCategory = index
+                buildTabs()
+                buildGrid()
+            }
+
+            val lp = LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT)
+            lp.setMargins(dp(2), dp(4), dp(2), dp(4))
+            tabRow.addView(tab, lp)
         }
     }
 
     private fun buildGrid() {
         grid.removeAllViews()
-        val emojis = EmojiData.categories[current].emojis
+        val emojis = EmojiData.categories[selectedCategory].emojis
         var row: LinearLayout? = null
         emojis.forEachIndexed { i, emoji ->
             if (i % 8 == 0) {
                 row = LinearLayout(context).apply { orientation = HORIZONTAL }
                 grid.addView(row)
             }
-            row!!.addView(cell(emoji), LayoutParams(0, dp(40), 1f))
+            val cell = TextView(context)
+            cell.text = emoji
+            cell.gravity = Gravity.CENTER
+            cell.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+            cell.typeface = Typeface.DEFAULT
+            cell.isClickable = true
+            cell.setOnClickListener { onPick(emoji) }
+            row!!.addView(cell, LayoutParams(0, dp(40), 1f))
         }
-    }
-
-    private fun cell(emoji: String): TextView = TextView(context).apply {
-        text = emoji
-        gravity = Gravity.CENTER
-        setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-        typeface = Typeface.DEFAULT
-        isClickable = true
-        setOnClickListener { onPick(emoji) }
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
