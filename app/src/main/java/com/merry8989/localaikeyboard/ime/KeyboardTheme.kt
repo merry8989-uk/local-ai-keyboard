@@ -161,6 +161,36 @@ class ThemePrefs(context: Context) {
         get() = sp.getInt(KEY_LONG_PRESS_DELAY, 300)
         set(value) = sp.edit().putInt(KEY_LONG_PRESS_DELAY, value).apply()
 
+    // ---- corrections & suggestions ------------------------------------------
+
+    var spellCheck: Boolean
+        get() = sp.getBoolean(KEY_SPELL_CHECK, true)
+        set(value) = sp.edit().putBoolean(KEY_SPELL_CHECK, value).apply()
+
+    var grammarCheck: Boolean
+        get() = sp.getBoolean(KEY_GRAMMAR_CHECK, true)
+        set(value) = sp.edit().putBoolean(KEY_GRAMMAR_CHECK, value).apply()
+
+    var suggestionStrip: Boolean
+        get() = sp.getBoolean(KEY_SUGGESTION_STRIP, true)
+        set(value) = sp.edit().putBoolean(KEY_SUGGESTION_STRIP, value).apply()
+
+    var wordSuggestions: Boolean
+        get() = sp.getBoolean(KEY_WORD_SUGGESTIONS, true)
+        set(value) = sp.edit().putBoolean(KEY_WORD_SUGGESTIONS, value).apply()
+
+    var nextWordSuggestions: Boolean
+        get() = sp.getBoolean(KEY_NEXT_WORD, true)
+        set(value) = sp.edit().putBoolean(KEY_NEXT_WORD, value).apply()
+
+    var smartCompose: Boolean
+        get() = sp.getBoolean(KEY_SMART_COMPOSE, true)
+        set(value) = sp.edit().putBoolean(KEY_SMART_COMPOSE, value).apply()
+
+    var blockOffensive: Boolean
+        get() = sp.getBoolean(KEY_BLOCK_OFFENSIVE, true)
+        set(value) = sp.edit().putBoolean(KEY_BLOCK_OFFENSIVE, value).apply()
+
     // ---- languages -----------------------------------------------------------
 
     /** Enabled language pack ids. English is always on. */
@@ -208,6 +238,13 @@ class ThemePrefs(context: Context) {
         const val KEY_FONT_SIZE = "font_size_percent"
         const val KEY_KEY_SPACING = "key_spacing_dp"
         const val KEY_LONG_PRESS_DELAY = "long_press_delay_ms"
+        const val KEY_SPELL_CHECK = "spell_check"
+        const val KEY_GRAMMAR_CHECK = "grammar_check"
+        const val KEY_SUGGESTION_STRIP = "suggestion_strip"
+        const val KEY_WORD_SUGGESTIONS = "word_suggestions"
+        const val KEY_NEXT_WORD = "next_word_suggestions"
+        const val KEY_SMART_COMPOSE = "smart_compose"
+        const val KEY_BLOCK_OFFENSIVE = "block_offensive"
         val DEFAULT_LANGS = setOf("en", "hi-roman")
     }
 }

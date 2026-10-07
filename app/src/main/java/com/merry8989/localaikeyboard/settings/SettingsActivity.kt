@@ -97,13 +97,9 @@ class SettingsActivity : AppCompatActivity() {
         root.addView(row("Keyboard", "Key outlines, corners, height") {
             startActivity(Intent(this, KeyboardSettingsActivity::class.java))
         })
-        root.addView(row("Typing", "Autocorrect, capitalisation, feedback") {
-            info("Backspace right after an autocorrect undoes it. Long-press ✦ for the clipboard.")
+        root.addView(row("Corrections and suggestions", "Spell check, grammar, suggestions") {
+            startActivity(Intent(this, CorrectionsSuggestionsActivity::class.java))
         })
-        root.addView(toggle("Auto-correct", prefs.autoCorrect) { prefs.autoCorrect = it })
-        root.addView(toggle("Auto-capitalise", prefs.autoCapitalize) { prefs.autoCapitalize = it })
-        root.addView(toggle("Double-space for period", prefs.doubleSpacePeriod) { prefs.doubleSpacePeriod = it })
-        root.addView(toggle("Learn new words", prefs.learnWords) { prefs.learnWords = it })
         root.addView(toggle("Sound on keypress", prefs.soundEnabled) { prefs.soundEnabled = it })
         root.addView(toggle("Vibrate on keypress", prefs.vibrateEnabled) { prefs.vibrateEnabled = it })
         root.addView(row("Gestures", "Swipe to delete a word") {

@@ -63,6 +63,11 @@
             android:label="@string/custom_words_title" />
 
         <activity
+            android:name=".settings.CorrectionsSuggestionsActivity"
+            android:exported="false"
+            android:label="@string/corrections_title" />
+
+        <activity
             android:name=".settings.KeyboardSettingsActivity"
             android:exported="false"
             android:label="@string/keyboard_title" />

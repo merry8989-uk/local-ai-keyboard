@@ -22,6 +22,11 @@ class EditorBridge(private val service: android.inputmethodservice.InputMethodSe
         ic?.setComposingText(text, 1)
     }
 
+    /** Compose with styling (used for spell/grammar underlines). */
+    fun setComposingRich(text: CharSequence) {
+        ic?.setComposingText(text, 1)
+    }
+
     fun finishComposing() {
         ic?.finishComposingText()
     }

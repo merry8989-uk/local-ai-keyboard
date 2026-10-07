@@ -90,6 +90,33 @@ class SpellEngine(
             .map { matchCase(previousWord, it) }
     }
 
+    /** True if the word is known to any enabled dictionary or the user's own. */
+    fun isKnown(word: String): Boolean {
+        val w = word.trim().lowercase()
+        if (w.isEmpty()) return true
+        return sym.contains(w) || hinglish.contains(w) || userDict.contains(w)
+    }
+
+    /**
+     * Remove blocked words from a suggestion list. The list lives in
+     * `assets/blocklist.txt` (one word per line) so it can be extended without
+     * changing code; an empty file simply filters nothing.
+     */
+    fun filterOffensive(words: List<String>): List<String> {
+        if (blocked.isEmpty()) return words
+        return words.filter { it.lowercase() !in blocked }
+    }
+
+    private val blocked: Set<String> by lazy {
+        runCatching {
+            context.assets.open("blocklist.txt").bufferedReader().useLines { lines ->
+                lines.map { it.trim().lowercase() }
+                    .filter { it.isNotEmpty() && !it.startsWith("#") }
+                    .toSet()
+            }
+        }.getOrDefault(emptySet())
+    }
+
     /** Remember a word the user typed. */
     fun learn(word: String) {
         val w = word.trim()

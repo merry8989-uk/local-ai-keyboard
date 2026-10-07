@@ -1,0 +1,5 @@
+# Words listed here (one per line) are removed from suggestions when
+# "Don't suggest offensive words" is enabled.
+#
+# The list ships empty on purpose. Add your own words below, one per line.
+# Lines starting with # are ignored.

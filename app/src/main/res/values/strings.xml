@@ -16,6 +16,7 @@
     <string name="theme_title">Theme</string>
     <string name="languages_title">Languages</string>
     <string name="custom_words_title">Custom Long Press Words</string>
+    <string name="corrections_title">Corrections and suggestions</string>
     <string name="keyboard_title">Keyboard</string>
     <string name="dictionary_title">Personal dictionary</string>
     <string name="stickers_title">Stickers &amp; media</string>

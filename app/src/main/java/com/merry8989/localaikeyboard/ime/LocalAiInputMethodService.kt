@@ -2,6 +2,9 @@ package com.merry8989.localaikeyboard.ime
 
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
+import android.text.style.UnderlineSpan
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.widget.LinearLayout
@@ -141,7 +144,12 @@ class LocalAiInputMethodService :
                 val out = if (caps) label else label.lowercase()
                 val punctuating = themePrefs.autoSpaceAfterPunctuation &&
                     out.length == 1 && out[0] in ".?!,;:"
-                bridge.commit(if (punctuating) "$out " else out)
+                if (punctuating) {
+                    bridge.finishComposing()
+                    bridge.commit("$out ")
+                } else {
+                    typeChar(out)
+                }
                 if (caps) {
                     caps = false
                     keyboardView.setCaps(false)
@@ -152,6 +160,7 @@ class LocalAiInputMethodService :
             KeyCode.BACKSPACE -> bridge.backspace()
             KeyCode.ENTER -> {
                 val prev = wordBeforeCurrent()
+                bridge.finishComposing()
                 bridge.commit("\n")
                 lastCorrection = null
                 app.learnedStore.observeWord(prev, "")   // no word after Enter
@@ -334,6 +343,7 @@ class LocalAiInputMethodService :
     }
 
     private fun handleSpace() {
+        bridge.finishComposing()
         // Double-space -> ". "
         val before = bridge.textBeforeCursor(3)
         if (themePrefs.doubleSpacePeriod && before.endsWith(" ") &&
@@ -434,26 +444,74 @@ class LocalAiInputMethodService :
     }
 
     private fun refreshSuggestions(delayMs: Long = 120) {
+        val strip = themePrefs.suggestionStrip
+        suggestionBar.visibility = if (strip) View.VISIBLE else View.GONE
         suggestJob?.cancel()
+        if (!strip) {
+            suggestionBar.setCandidates(emptyList())
+            lastTopCandidate = null
+            return
+        }
         suggestJob = scope.launch {
             delay(delayMs)
             val word = bridge.currentWordBeforeCursor()
             if (word.isEmpty()) {
                 // No partial word: predict the next word from what you've used.
+                if (!themePrefs.nextWordSuggestions && !themePrefs.smartCompose) {
+                    suggestionBar.setCandidates(emptyList())
+                    lastTopCandidate = null
+                    return@launch
+                }
                 val prev = wordBeforeCurrent()
-                val predictions = withContext(Dispatchers.Default) {
+                var predictions = withContext(Dispatchers.Default) {
                     if (prev == null) emptyList() else app.spellEngine.predictNext(prev)
+                }
+                if (themePrefs.blockOffensive) {
+                    predictions = app.spellEngine.filterOffensive(predictions)
                 }
                 suggestionBar.setCandidates(predictions)
                 lastTopCandidate = null
                 return@launch
             }
-            val results = withContext(Dispatchers.Default) {
+            if (!themePrefs.wordSuggestions) {
+                suggestionBar.setCandidates(emptyList())
+                lastTopCandidate = null
+                return@launch
+            }
+            var results = withContext(Dispatchers.Default) {
                 app.spellEngine.suggest(word, language)
             }
+            if (themePrefs.blockOffensive) results = app.spellEngine.filterOffensive(results)
             suggestionBar.setCandidates(results)
             lastTopCandidate = results.firstOrNull()
         }
+    }
+
+    /** Type a character, composing it so spell/grammar issues can be underlined. */
+    private fun typeChar(ch: String) {
+        if (!themePrefs.spellCheck && !themePrefs.grammarCheck) {
+            bridge.commit(ch)
+            return
+        }
+        val word = bridge.currentWordBeforeCursor() + ch
+        bridge.setComposingRich(decorate(word))
+    }
+
+    private fun decorate(word: String): CharSequence {
+        val misspelt = themePrefs.spellCheck && word.length >= 3 && !app.spellEngine.isKnown(word)
+        val badGrammar = themePrefs.grammarCheck && hasGrammarIssue(word)
+        if (!misspelt && !badGrammar) return word
+        val span = SpannableString(word)
+        val color = if (misspelt) 0xFFEF4444.toInt() else 0xFF3B82F6.toInt()
+        span.setSpan(UnderlineSpan(), 0, word.length, 0)
+        span.setSpan(ForegroundColorSpan(color), 0, word.length, 0)
+        return span
+    }
+
+    /** Light, per-word grammar check that won't false-positive on normal words. */
+    private fun hasGrammarIssue(word: String): Boolean {
+        if (word == "i") return true
+        return Regex("(.)\\1{2,}").containsMatchIn(word)
     }
 
     private fun toast(message: String) =
