@@ -14,14 +14,13 @@ import androidx.appcompat.app.AppCompatActivity
 import com.merry8989.localaikeyboard.App
 
 /**
- * The app's front door (it is also the launcher activity). Sets up the keyboard
- * as the system IME and manages the on-device model.
+ * The app's front door (also the launcher activity). Sets up the keyboard as the
+ * system IME and manages the on-device models.
  */
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var status: TextView
-    private lateinit var downloadBtn: Button
-    private lateinit var deleteBtn: Button
+    private val deleteButtons = mutableListOf<Pair<ModelSpec, Button>>()
 
     private val models get() = App.instance.modelManager
 
@@ -53,42 +52,49 @@ class SettingsActivity : AppCompatActivity() {
         })
 
         root.addView(section("On-device AI model"))
-        status = body("").apply { id = View.generateViewId() }
+        status = body("")
         root.addView(status)
 
-        downloadBtn = button("Download model") {
-            val id = models.enqueueDownload()
-            if (id == -1L) {
-                toast("Set MODEL_URL in ModelManager.kt first.")
-            } else {
-                toast("Download started. Reopen this screen when it finishes.")
+        for (spec in ModelManager.AVAILABLE) {
+            root.addView(button("Download ${spec.name} (${spec.approxLabel})") {
+                val id = models.enqueueDownload(spec)
+                if (id == -1L) {
+                    toast("Download could not start.")
+                } else {
+                    toast("Downloading ${spec.name}. Reopen this screen when it finishes.")
+                }
+            })
+            val del = button("Delete ${spec.name}") {
+                models.delete(spec)
+                refresh()
+                toast("Deleted ${spec.name}.")
             }
+            deleteButtons += spec to del
+            root.addView(del)
         }
-        root.addView(downloadBtn)
-
-        deleteBtn = button("Delete model") {
-            models.delete()
-            refresh()
-            toast("Model deleted.")
-        }
-        root.addView(deleteBtn)
 
         root.addView(section("Privacy"))
-        root.addView(body("• No INTERNET permission in the keyboard process.\n" +
-                "• No clipboard access, no analytics, no logging of your text.\n" +
-                "• The model is fetched once, by the system downloader, on your command."))
+        root.addView(
+            body(
+                "• No INTERNET permission in the keyboard process.\n" +
+                    "• No clipboard access, no analytics, no logging of your text.\n" +
+                    "• The model is fetched once, by the system downloader, on your command."
+            )
+        )
 
         return root
     }
 
     private fun refresh() {
-        val installed = models.isInstalled()
-        status.text = if (installed) {
-            "Model installed — AI actions are available."
+        val installed = models.installedSpec()
+        status.text = if (installed != null) {
+            "Model ready: ${installed.name}. AI actions are available."
         } else {
             "No model installed — AI actions are disabled until you download one."
         }
-        deleteBtn.isEnabled = installed
+        for ((spec, button) in deleteButtons) {
+            button.isEnabled = models.isInstalled(spec)
+        }
     }
 
     // ---- tiny view helpers ---------------------------------------------------

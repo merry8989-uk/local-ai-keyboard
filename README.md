@@ -60,8 +60,13 @@ app/src/main/java/com/merry8989/localaikeyboard/
 ## Model weights
 
 Model files (`.task` / `.litertlm` / `.gguf`) are **not** committed — they are
-large and license-bound. The app downloads them on request into app-private
-storage. See `settings/ModelManager.kt` for the URLs and checksums to configure.
+large. The app downloads them on request into app-private storage, via the
+system downloader, from URLs in `settings/ModelManager.kt`.
+
+The default is **Qwen2.5 1.5B Instruct** (`~1.5 GB`, ungated) with a smaller
+**Qwen2.5 0.5B Instruct** (`~0.5 GB`) option. Both are `.task` bundles. Gemma is
+supported by the runtime but its public copy is gated, so it needs a token — it
+is not the default.
 
 ## Signing (updating without uninstalling)
 

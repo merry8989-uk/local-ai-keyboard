@@ -25,7 +25,7 @@ class AiController(
         if (engine.isReady) return
         loadMutex.withLock {
             if (engine.isReady) return
-            val path = models.modelPath() ?: return
+            val path = models.activeModelPath() ?: return
             engine.load(path)
         }
     }

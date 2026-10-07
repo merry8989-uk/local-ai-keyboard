@@ -84,13 +84,17 @@ It ships as an Android AAR, uses the GPU delegate where available, and takes a
 single `.task` / `.litertlm` model bundle — the least-friction path to a working
 offline LLM on Android.
 
-**Model ladder** (user picks in Settings based on RAM):
+**Model ladder** (verified reachable, ungated, and in the `.task` format the
+runtime reads, as of this writing):
 
-| Model | Size (int4) | Approx RAM | Use |
+| Model | File | Size | Notes |
 |---|---|---|---|
-| Gemma 3 1B IT | ~0.6–0.9 GB | ~1.5 GB | Default. Fast enough for live rewriting. |
-| Gemma 2 2B IT | ~1.3–1.5 GB | ~3 GB | Better quality for essays/emails. |
-| Phi-3 Mini 3.8B | ~2.2 GB | ~4 GB | Optional, high-end only. |
+| Qwen2.5 1.5B Instruct | `.task` (q8, ekv1280) | ~1.5 GB | **Default.** Ungated, instruction-tuned. |
+| Qwen2.5 0.5B Instruct | `.task` (q8, ekv1280) | ~0.5 GB | Fastest option. |
+
+Gemma 3 1B is still a good target, but its Hugging Face copy is **gated** — it
+needs an access token and licence acceptance, so it is not the zero-config
+default. URLs live in `settings/ModelManager.kt`.
 
 `LlmEngine` is an interface so the backend is swappable:
 
