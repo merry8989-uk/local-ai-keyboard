@@ -8,19 +8,24 @@ android {
     compileSdk = 34
 
     // ---- Signing -------------------------------------------------------------
-    // If a keystore is supplied (via CI secrets or local gradle.properties),
-    // BOTH debug and release builds are signed with it. A single stable key
-    // means each new APK installs *over* the existing app — no uninstall needed.
-    // Without a keystore, everything falls back to the normal debug key.
-    val keystorePath = System.getenv("KEYSTORE_FILE")
+    // Priority:
+    //   1. A keystore supplied via a CI secret / gradle property — your own key.
+    //   2. The committed debug keystore (app/debug.p12). Every build shares this
+    //      one key, so new APKs install OVER the old app with no uninstall.
+    //      It is a DEBUG key: public by design, never use it for a release build.
+    //   3. AGP's default, freshly-generated debug key (varies per machine).
+    val envKeystorePath = System.getenv("KEYSTORE_FILE")
         ?: project.findProperty("KEYSTORE_FILE")?.toString()
-    val keystoreFile = keystorePath?.takeIf { it.isNotBlank() }?.let { file(it) }
-    val hasKeystore = keystoreFile?.exists() == true
+    val envKeystoreFile = envKeystorePath?.takeIf { it.isNotBlank() }?.let { file(it) }
+    val hasEnvKeystore = envKeystoreFile?.exists() == true
+
+    val sharedDebugFile = file("debug.p12")
+    val hasSharedDebug = sharedDebugFile.exists()
 
     signingConfigs {
-        if (hasKeystore) {
+        if (hasEnvKeystore) {
             create("stable") {
-                storeFile = keystoreFile
+                storeFile = envKeystoreFile
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                     ?: project.findProperty("KEYSTORE_PASSWORD")?.toString()
                 keyAlias = System.getenv("KEY_ALIAS")
@@ -29,14 +34,23 @@ android {
                     ?: project.findProperty("KEY_PASSWORD")?.toString()
             }
         }
+        if (hasSharedDebug) {
+            create("sharedDebug") {
+                storeFile = sharedDebugFile
+                storeType = "PKCS12"
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
     }
 
     defaultConfig {
         applicationId = "com.merry8989.localaikeyboard"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
 
         // arm64 only: the on-device LLM runtime is 64-bit.
         ndk {
@@ -46,10 +60,14 @@ android {
 
     buildTypes {
         getByName("debug") {
-            if (hasKeystore) signingConfig = signingConfigs.getByName("stable")
+            signingConfig = when {
+                hasEnvKeystore -> signingConfigs.getByName("stable")
+                hasSharedDebug -> signingConfigs.getByName("sharedDebug")
+                else -> signingConfigs.getByName("debug")
+            }
         }
         getByName("release") {
-            if (hasKeystore) signingConfig = signingConfigs.getByName("stable")
+            if (hasEnvKeystore) signingConfig = signingConfigs.getByName("stable")
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -92,7 +110,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
-    // On-device LLM runtime (Gemma / Phi via the MediaPipe LLM Inference API).
+    // On-device LLM runtime (Gemma / Qwen / Phi via the MediaPipe LLM Inference API).
     implementation("com.google.mediapipe:tasks-genai:0.10.24")
 
     testImplementation("junit:junit:4.13.2")

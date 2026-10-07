@@ -71,33 +71,23 @@ is not the default.
 ## Signing (updating without uninstalling)
 
 Android only lets an APK update an app if it is signed with the **same key** as
-the installed version. CI runners generate a *random* debug key on every run, so
-without this step each build would need an uninstall first. Sign with one stable
-key to fix that:
+the installed version. CI runners otherwise generate a *random* debug key per
+run, which forces an uninstall before every update.
 
-1. Create a keystore once, and keep it safe — losing it means you can never
-   update the app again:
+This repo ships a fixed **debug** keystore at `app/debug.p12`
+(alias `androiddebugkey`, password `android` — the standard Android debug
+convention). Every build signs with it, so updates install straight over the
+previous APK, with no uninstall and no setup.
 
-   ```bash
-   keytool -genkeypair -v -keystore release.keystore \
-     -alias localkey -keyalg RSA -keysize 2048 -validity 10000
-   ```
+> `app/debug.p12` is a **debug** key: it is public by design and must never be
+> used for a release build or the Play Store. For a real release, supply your own
+> key via the `KEYSTORE_FILE` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`
+> secrets — the build uses it automatically when present.
 
-2. Base64-encode it and add four repository secrets
-   (Settings → Secrets and variables → Actions):
+### One-time note
 
-   | Secret | Value |
-   |---|---|
-   | `KEYSTORE_BASE64` | output of `base64 -w0 release.keystore` |
-   | `KEYSTORE_PASSWORD` | the store password you chose |
-   | `KEY_ALIAS` | `localkey` |
-   | `KEY_PASSWORD` | the key password you chose |
-
-3. Push. The next APK is signed with your key, and from then on every build
-   installs straight over the previous one — no uninstall.
-
-For local builds, put the same four values in `gradle.properties` (or export
-them as environment variables) and Gradle signs the debug build with the same key.
+The first APK you installed was signed with a random CI debug key, so moving onto
+this fixed key needs **one final uninstall**. After that, updates are seamless.
 
 ## License
 
