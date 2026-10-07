@@ -13,7 +13,8 @@ import android.widget.TextView
 
 /**
  * A programmatic keyboard. Rows of [KeyDef] become weighted TextViews.
- * Handles: theming, long-press alternates, and backspace hold/swipe.
+ * Handles: theming, key outlines, long-press alternates, backspace hold/swipe,
+ * and long-press on ☺ to reach stickers.
  */
 class KeyboardView(
     context: Context,
@@ -26,9 +27,16 @@ class KeyboardView(
         fun onBackspaceHoldStart()
         fun onBackspaceHoldStop()
         fun onDeleteWord()
+        fun onStickerRequest()
     }
 
     var theme: KeyboardTheme = ThemeRepository.default
+        set(value) {
+            field = value
+            render()
+        }
+
+    var keyStyle: KeyStyle = KeyStyle()
         set(value) {
             field = value
             render()
@@ -94,19 +102,34 @@ class KeyboardView(
             }
         }
 
-        if (def.code == KeyCode.BACKSPACE) {
-            attachBackspaceTouch(key, def, label)
-        } else {
-            key.setOnClickListener {
-                haptic(it)
-                listener.onKey(def, label)
-            }
-            val variants = if (def.code == KeyCode.CHAR) AlternateKeys.variantsFor(label) else emptyList()
-            if (variants.size > 1) {
+        when (def.code) {
+            KeyCode.BACKSPACE -> attachBackspaceTouch(key, def, label)
+
+            KeyCode.EMOJI -> {
+                key.setOnClickListener {
+                    haptic(it)
+                    listener.onKey(def, label)
+                }
                 key.setOnLongClickListener {
                     haptic(it)
-                    listener.onAlternates(variants)
+                    listener.onStickerRequest()
                     true
+                }
+            }
+
+            else -> {
+                key.setOnClickListener {
+                    haptic(it)
+                    listener.onKey(def, label)
+                }
+                val variants =
+                    if (def.code == KeyCode.CHAR) AlternateKeys.variantsFor(label) else emptyList()
+                if (variants.size > 1) {
+                    key.setOnLongClickListener {
+                        haptic(it)
+                        listener.onAlternates(variants)
+                        true
+                    }
                 }
             }
         }
@@ -156,7 +179,8 @@ class KeyboardView(
     private fun keyDrawable(color: Int): GradientDrawable =
         GradientDrawable().apply {
             setColor(color)
-            cornerRadius = dp(8).toFloat()
+            cornerRadius = dp(keyStyle.cornerRadiusDp).toFloat()
+            if (keyStyle.hasOutline) setStroke(dp(keyStyle.outlineWidthDp), keyStyle.outlineColor)
         }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()

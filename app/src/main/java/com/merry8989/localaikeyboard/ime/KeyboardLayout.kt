@@ -1,7 +1,7 @@
 package com.merry8989.localaikeyboard.ime
 
 /** What a key does when tapped. */
-enum class KeyCode { CHAR, SHIFT, BACKSPACE, ENTER, SPACE, SYMBOLS, LANG, AI, STICKER }
+enum class KeyCode { CHAR, SHIFT, BACKSPACE, ENTER, SPACE, SYMBOLS, LANG, AI, EMOJI, STICKER }
 
 /**
  * Logical description of one key. [output] is the text committed on tap;
@@ -27,7 +27,7 @@ object KeyboardLayout {
         KeyDef(left, code = KeyCode.SYMBOLS, weight = 1.4f, isSpecial = true),
         KeyDef("हि", code = KeyCode.LANG, weight = 1.0f, isSpecial = true),
         KeyDef("✦", code = KeyCode.AI, weight = 1.0f, isSpecial = true),
-        KeyDef("☺", code = KeyCode.STICKER, weight = 1.0f, isSpecial = true),
+        KeyDef("☺", code = KeyCode.EMOJI, weight = 1.0f, isSpecial = true),
         KeyDef("space", output = " ", code = KeyCode.SPACE, weight = 3.2f),
         KeyDef(".", output = "."),
         KeyDef("↵", code = KeyCode.ENTER, weight = 1.4f, isSpecial = true),

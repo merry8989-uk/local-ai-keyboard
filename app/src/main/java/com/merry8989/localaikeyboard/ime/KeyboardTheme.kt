@@ -96,12 +96,56 @@ class ThemePrefs(context: Context) {
         get() = sp.getBoolean(KEY_AUTOCORRECT, true)
         set(value) = sp.edit().putBoolean(KEY_AUTOCORRECT, value).apply()
 
+    var autoCapitalize: Boolean
+        get() = sp.getBoolean(KEY_AUTOCAP, true)
+        set(value) = sp.edit().putBoolean(KEY_AUTOCAP, value).apply()
+
+    var doubleSpacePeriod: Boolean
+        get() = sp.getBoolean(KEY_DBLSPACE, true)
+        set(value) = sp.edit().putBoolean(KEY_DBLSPACE, value).apply()
+
+    var learnWords: Boolean
+        get() = sp.getBoolean(KEY_LEARN, true)
+        set(value) = sp.edit().putBoolean(KEY_LEARN, value).apply()
+
+    // ---- key style -----------------------------------------------------------
+
+    var cornerRadiusDp: Int
+        get() = sp.getInt(KEY_CORNER, 8)
+        set(value) = sp.edit().putInt(KEY_CORNER, value).apply()
+
+    var outlineWidthDp: Int
+        get() = sp.getInt(KEY_OUTLINE_W, 0)
+        set(value) = sp.edit().putInt(KEY_OUTLINE_W, value).apply()
+
+    var outlineColor: Int
+        get() = sp.getInt(KEY_OUTLINE_C, 0x00000000)
+        set(value) = sp.edit().putInt(KEY_OUTLINE_C, value).apply()
+
+    var keyHeightDp: Int
+        get() = sp.getInt(KEY_KEY_HEIGHT, 260)
+        set(value) = sp.edit().putInt(KEY_KEY_HEIGHT, value).apply()
+
     fun theme(): KeyboardTheme = ThemeRepository.byId(themeId)
+
+    fun keyStyle(): KeyStyle = KeyStyle(
+        cornerRadiusDp = cornerRadiusDp,
+        outlineWidthDp = outlineWidthDp,
+        outlineColor = outlineColor,
+        keyHeightDp = keyHeightDp,
+    )
 
     private companion object {
         const val KEY_THEME = "theme_id"
         const val KEY_SOUND = "sound_enabled"
         const val KEY_VIBRATE = "vibrate_enabled"
         const val KEY_AUTOCORRECT = "autocorrect_enabled"
+        const val KEY_AUTOCAP = "autocapitalize_enabled"
+        const val KEY_DBLSPACE = "double_space_period"
+        const val KEY_LEARN = "learn_words"
+        const val KEY_CORNER = "key_corner_radius"
+        const val KEY_OUTLINE_W = "key_outline_width"
+        const val KEY_OUTLINE_C = "key_outline_color"
+        const val KEY_KEY_HEIGHT = "key_height"
     }
 }

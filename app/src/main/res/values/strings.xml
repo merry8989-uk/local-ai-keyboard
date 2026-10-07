@@ -14,6 +14,8 @@
 
     <string name="settings_title">Local AI Keyboard</string>
     <string name="theme_title">Theme</string>
+    <string name="keyboard_title">Keyboard</string>
+    <string name="dictionary_title">Personal dictionary</string>
     <string name="stickers_title">Stickers &amp; media</string>
     <string name="enable_keyboard">Enable keyboard</string>
     <string name="model_section">On-device AI model</string>

@@ -7,10 +7,10 @@ import com.merry8989.localaikeyboard.lingua.PhoneticMatcher
 
 /**
  * The typing-time brain: one SymSpell index over English + Hinglish words, plus
- * a phonetic pass so Romanised Hindi variants surface. Returns at most three
- * candidates for the suggestion bar.
+ * a phonetic pass for Romanised Hindi, plus the user's own learned words.
+ * Returns at most three candidates for the suggestion bar.
  */
-class SpellEngine(context: Context) {
+class SpellEngine(context: Context, private val userDict: UserDictionary) {
 
     private val hinglish = HinglishLexicon(context)
     private val sym: SymSpell = SymSpell(maxEditDistance = 2, prefixLength = 7).also { s ->
@@ -44,11 +44,25 @@ class SpellEngine(context: Context) {
             }
         }
 
+        // The user's own learned words get a strong boost.
+        for ((term, freq) in userDict.all()) {
+            if (term == w) continue
+            if (editDistance(w, term, 2) <= 2) {
+                results[term] = (results[term] ?: 0.0) + 3_000_000 + freq
+            }
+        }
+
         return results.entries
             .sortedByDescending { it.value }
             .map { matchCase(word, it.key) }
             .distinct()
             .take(3)
+    }
+
+    /** Remember a word the user typed (goes to the on-device dictionary). */
+    fun learn(word: String) {
+        val w = word.trim()
+        if (w.length >= 3 && !sym.contains(w) && !hinglish.contains(w)) userDict.add(w)
     }
 
     /** Apply the lightweight grammar rules to a finished sentence/paragraph. */
@@ -59,6 +73,25 @@ class SpellEngine(context: Context) {
             candidate.replaceFirstChar { it.uppercase() }
         } else candidate
 
+    private fun editDistance(a: String, b: String, max: Int): Int {
+        if (a == b) return 0
+        if (kotlin.math.abs(a.length - b.length) > max) return max + 1
+        var prev = IntArray(b.length + 1) { it }
+        var cur = IntArray(b.length + 1)
+        for (i in 1..a.length) {
+            cur[0] = i
+            var rowMin = cur[0]
+            for (j in 1..b.length) {
+                val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+                cur[j] = minOf(cur[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
+                if (cur[j] < rowMin) rowMin = cur[j]
+            }
+            if (rowMin > max) return max + 1
+            val tmp = prev; prev = cur; cur = tmp
+        }
+        return prev[b.length]
+    }
+
     private fun englishWords(context: Context): Map<String, Int> {
         val words = runCatching {
             context.assets.open("en_words.txt").bufferedReader().useLines { lines ->
@@ -66,7 +99,6 @@ class SpellEngine(context: Context) {
             }
         }.getOrDefault(emptyList())
         val total = words.size.coerceAtLeast(1)
-        // rank-based frequency: earlier lines are more common
         return words.withIndex().associate { (i, w) -> w to (total - i) * 100 }
     }
 }

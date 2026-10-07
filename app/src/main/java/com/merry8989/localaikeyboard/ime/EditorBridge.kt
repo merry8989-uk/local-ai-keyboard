@@ -55,6 +55,10 @@ class EditorBridge(private val service: android.inputmethodservice.InputMethodSe
         return before.takeLastWhile { it.isLetter() || it == '\'' }
     }
 
+    /** Raw text before the cursor, up to [max] characters. */
+    fun textBeforeCursor(max: Int): String =
+        ic?.getTextBeforeCursor(max, 0)?.toString().orEmpty()
+
     /** Selected text if any, else the sentence around the cursor. */
     fun contextForAi(): String {
         val conn = ic ?: return ""

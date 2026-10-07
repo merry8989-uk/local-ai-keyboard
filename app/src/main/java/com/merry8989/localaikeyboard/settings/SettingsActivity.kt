@@ -58,13 +58,16 @@ class SettingsActivity : AppCompatActivity() {
         root.addView(row("Theme", "Pick from 24 built-in themes") {
             startActivity(Intent(this, ThemeActivity::class.java))
         })
-        root.addView(row("Keyboard", "Layout, key feedback") {
-            info("Keyboard", "QWERTY + a symbols page with currency, maths and extra signs. Long-press a key for accents and related characters.")
+        root.addView(row("Keyboard", "Key outlines, corners, height") {
+            startActivity(Intent(this, KeyboardSettingsActivity::class.java))
         })
-        root.addView(row("Typing", "Autocorrect, sound, vibration") {
-            info("Typing", "Autocorrect uses the on-device dictionary; toggle it below.")
+        root.addView(row("Typing", "Autocorrect, capitalisation, feedback") {
+            info("Typing", "Autocorrect uses the on-device dictionary. Backspace right after an autocorrect undoes it.")
         })
         root.addView(toggle("Auto-correct", prefs.autoCorrect) { prefs.autoCorrect = it })
+        root.addView(toggle("Auto-capitalise", prefs.autoCapitalize) { prefs.autoCapitalize = it })
+        root.addView(toggle("Double-space for period", prefs.doubleSpacePeriod) { prefs.doubleSpacePeriod = it })
+        root.addView(toggle("Learn new words", prefs.learnWords) { prefs.learnWords = it })
         root.addView(toggle("Sound on keypress", prefs.soundEnabled) { prefs.soundEnabled = it })
         root.addView(toggle("Vibrate on keypress", prefs.vibrateEnabled) { prefs.vibrateEnabled = it })
         root.addView(row("Gestures", "Swipe to delete a word") {
@@ -73,8 +76,11 @@ class SettingsActivity : AppCompatActivity() {
         root.addView(row("Clipboard", "Private by design") {
             info("Clipboard", "This keyboard does not read or store your clipboard. Stickers you copy are written only when you tap them.")
         })
-        root.addView(row("Emojis", "Use the ☺ key") {
-            info("Emojis", "Tap ☺ on the keyboard to open your stickers & media.")
+        root.addView(row("Emoji", "Tap ☺ on the keyboard") {
+            info("Emoji", "Tap ☺ for prebuilt emoji — they insert into any text field. Long-press ☺ for stickers & media.")
+        })
+        root.addView(row("Personal dictionary", "Words learned on this device") {
+            startActivity(Intent(this, DictionaryActivity::class.java))
         })
         root.addView(row("Stickers & media", "Add photos, GIFs, PNGs") {
             startActivity(Intent(this, StickerActivity::class.java))

@@ -23,9 +23,10 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * The keyboard. Wires the pieces together:
- *   KeyboardView  -> keys, themes, long-press alternates, backspace hold
+ * The keyboard. Wires everything together:
+ *   KeyboardView  -> keys, themes, key outlines, long-press alternates, backspace
  *   SuggestionBar -> candidates + ✦
+ *   EmojiPanel    -> emoji (inserted as text)
  *   AiPanel       -> on-device LLM actions
  *   StickerPanel  -> local stickers (copied to clipboard)
  */
@@ -40,6 +41,7 @@ class LocalAiInputMethodService :
     private lateinit var suggestionBar: SuggestionBar
     private lateinit var aiPanel: AiPanel
     private lateinit var altStrip: AlternateStrip
+    private lateinit var emojiPanel: EmojiPanel
     private lateinit var stickerPanel: StickerPanel
     private lateinit var themePrefs: ThemePrefs
     private lateinit var stickerStore: StickerStore
@@ -48,6 +50,9 @@ class LocalAiInputMethodService :
     private var showingSymbols = false
     private var caps = false
     private var lastTopCandidate: String? = null
+
+    private data class Correction(val original: String, val corrected: String)
+    private var lastCorrection: Correction? = null
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var suggestJob: Job? = null
@@ -67,20 +72,26 @@ class LocalAiInputMethodService :
         val t = theme
 
         suggestionBar = SuggestionBar(this, this).apply { setTheme(t) }
-        altStrip = AlternateStrip(this) { char -> commitAlternate(char) }
+        altStrip = AlternateStrip(this) { char -> commitText(char) }
+            .apply { visibility = View.GONE }
+        emojiPanel = EmojiPanel(this) { emoji -> commitText(emoji) }
             .apply { visibility = View.GONE }
         aiPanel = AiPanel(this, this).apply { visibility = View.GONE }
         stickerPanel = StickerPanel(this, stickerStore, ::onStickerPicked, ::openStickerManager)
             .apply { visibility = View.GONE }
-        keyboardView = KeyboardView(this, this).apply { this.theme = t }
+        keyboardView = KeyboardView(this, this).apply {
+            this.theme = t
+            this.keyStyle = themePrefs.keyStyle()
+        }
 
         return LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             addView(suggestionBar, LinearLayout.LayoutParams(MATCH_PARENT, dp(46)))
             addView(altStrip, LinearLayout.LayoutParams(MATCH_PARENT, dp(52)))
+            addView(emojiPanel, LinearLayout.LayoutParams(MATCH_PARENT, dp(200)))
             addView(aiPanel, LinearLayout.LayoutParams(MATCH_PARENT, dp(150)))
             addView(stickerPanel, LinearLayout.LayoutParams(MATCH_PARENT, dp(96)))
-            addView(keyboardView, LinearLayout.LayoutParams(MATCH_PARENT, dp(260)))
+            addView(keyboardView, LinearLayout.LayoutParams(MATCH_PARENT, dp(themePrefs.keyHeightDp)))
         }
     }
 
@@ -88,14 +99,15 @@ class LocalAiInputMethodService :
         super.onStartInputView(info, restarting)
         caps = false
         showingSymbols = false
+        lastCorrection = null
         val t = theme
         suggestionBar.setTheme(t)
         keyboardView.theme = t
+        keyboardView.keyStyle = themePrefs.keyStyle()
         keyboardView.setLayout(KeyboardLayout.qwerty)
         keyboardView.setCaps(false)
-        aiPanel.hide()
-        altStrip.hide()
-        stickerPanel.hide()
+        applyKeyHeight()
+        hidePanels()
         refreshSuggestions()
     }
 
@@ -111,6 +123,7 @@ class LocalAiInputMethodService :
         altStrip.hide()
         when (key.code) {
             KeyCode.CHAR -> {
+                lastCorrection = null
                 val out = if (caps) label else label.lowercase()
                 bridge.commit(out)
                 if (caps) {
@@ -121,7 +134,11 @@ class LocalAiInputMethodService :
             }
             KeyCode.SPACE -> handleSpace()
             KeyCode.BACKSPACE -> bridge.backspace()
-            KeyCode.ENTER -> bridge.commit("\n")
+            KeyCode.ENTER -> {
+                bridge.commit("\n")
+                lastCorrection = null
+                applyAutoCaps()
+            }
             KeyCode.SHIFT -> {
                 caps = !caps
                 keyboardView.setCaps(caps)
@@ -134,20 +151,21 @@ class LocalAiInputMethodService :
             }
             KeyCode.LANG -> cycleLanguage()
             KeyCode.AI -> {
-                stickerPanel.hide()
+                hidePanels()
                 openAi()
             }
+            KeyCode.EMOJI -> toggleEmoji()
             KeyCode.STICKER -> toggleStickers()
         }
     }
 
     override fun onAlternates(variants: List<String>) {
-        aiPanel.hide()
-        stickerPanel.hide()
+        hidePanels()
         altStrip.show(variants, theme)
     }
 
     override fun onBackspaceHoldStart() {
+        if (undoCorrection()) return
         backspaceJob?.cancel()
         backspaceJob = scope.launch {
             bridge.backspace()          // one immediately
@@ -168,12 +186,17 @@ class LocalAiInputMethodService :
         bridge.deleteWord()
     }
 
+    override fun onStickerRequest() {
+        toggleStickers()
+    }
+
     // ---- SuggestionBar.Listener ---------------------------------------------
 
     override fun onCandidate(text: String) {
         val word = bridge.currentWordBeforeCursor()
         bridge.deleteBefore(word.length)
         bridge.commit("$text ")
+        lastCorrection = Correction(word, text)
         suggestionBar.setCandidates(emptyList())
         lastTopCandidate = null
     }
@@ -215,12 +238,25 @@ class LocalAiInputMethodService :
 
     override fun onDismiss() = aiPanel.hide()
 
-    // ---- stickers ------------------------------------------------------------
+    // ---- panels --------------------------------------------------------------
 
-    private fun toggleStickers() {
+    private fun hidePanels() {
         aiPanel.hide()
         altStrip.hide()
-        if (stickerPanel.isShowing()) stickerPanel.hide() else stickerPanel.show(theme)
+        emojiPanel.hide()
+        stickerPanel.hide()
+    }
+
+    private fun toggleEmoji() {
+        val show = !emojiPanel.isShowing()
+        hidePanels()
+        if (show) emojiPanel.show(theme)
+    }
+
+    private fun toggleStickers() {
+        val show = !stickerPanel.isShowing()
+        hidePanels()
+        if (show) stickerPanel.show(theme)
     }
 
     private fun onStickerPicked(file: File) {
@@ -236,22 +272,76 @@ class LocalAiInputMethodService :
 
     // ---- internals -----------------------------------------------------------
 
-    private fun commitAlternate(char: String) {
-        bridge.commit(char)
+    private fun commitText(text: String) {
+        bridge.finishComposing()
+        bridge.commit(text)
         refreshSuggestions()
     }
 
     private fun handleSpace() {
+        // Double-space -> ". "
+        val before = bridge.textBeforeCursor(3)
+        if (themePrefs.doubleSpacePeriod && before.endsWith(" ") &&
+            !before.trimEnd().endsWith(".")
+        ) {
+            bridge.deleteBefore(1)
+            bridge.commit(". ")
+            lastCorrection = null
+            suggestionBar.setCandidates(emptyList())
+            lastTopCandidate = null
+            applyAutoCaps()
+            return
+        }
+
         val word = bridge.currentWordBeforeCursor()
         val top = lastTopCandidate
-        if (word.isNotEmpty() && top != null && !top.equals(word, ignoreCase = true)) {
+        if (themePrefs.autoCorrect && word.isNotEmpty() && top != null &&
+            !top.equals(word, ignoreCase = true)
+        ) {
             bridge.deleteBefore(word.length)
             bridge.commit("$top ")
+            lastCorrection = Correction(word, top)
         } else {
+            if (themePrefs.learnWords && word.length >= 3) app.spellEngine.learn(word)
             bridge.commit(" ")
+            lastCorrection = null
         }
         suggestionBar.setCandidates(emptyList())
         lastTopCandidate = null
+        applyAutoCaps()
+    }
+
+    /** If the previous action was an autocorrect, backspace restores the original. */
+    private fun undoCorrection(): Boolean {
+        val c = lastCorrection ?: return false
+        lastCorrection = null
+        val before = bridge.textBeforeCursor(c.corrected.length + 1)
+        if (before.endsWith(" ") && before.trimEnd().equals(c.corrected, ignoreCase = true)) {
+            bridge.deleteBefore(c.corrected.length + 1)
+            bridge.commit(c.original + " ")
+            refreshSuggestions()
+            return true
+        }
+        return false
+    }
+
+    private fun applyAutoCaps() {
+        if (!themePrefs.autoCapitalize) return
+        val before = bridge.textBeforeCursor(3)
+        val trimmed = before.trimEnd()
+        val shouldCap = trimmed.isEmpty() ||
+            before.endsWith("\n") ||
+            trimmed.endsWith(".") || trimmed.endsWith("!") || trimmed.endsWith("?")
+        if (shouldCap && !caps) {
+            caps = true
+            keyboardView.setCaps(true)
+        }
+    }
+
+    private fun applyKeyHeight() {
+        val lp = keyboardView.layoutParams ?: return
+        lp.height = dp(themePrefs.keyHeightDp)
+        keyboardView.layoutParams = lp
     }
 
     private fun openAi() {
