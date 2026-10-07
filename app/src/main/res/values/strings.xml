@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Local AI Keyboard</string>
+    <string name="ime_label">Local AI Keyboard</string>
+    <string name="subtype_en">English (India)</string>
+    <string name="subtype_hi_roman">Hinglish (Romanised Hindi)</string>
+
+    <string name="action_fix">Fix</string>
+    <string name="action_rephrase">Rephrase</string>
+    <string name="action_continue">Continue</string>
+    <string name="action_email">Email</string>
+    <string name="action_essay">Essay</string>
+    <string name="action_message">Message</string>
+
+    <string name="settings_title">Local AI Keyboard</string>
+    <string name="enable_keyboard">Enable keyboard</string>
+    <string name="model_section">On-device AI model</string>
+    <string name="download_model">Download model</string>
+    <string name="delete_model">Delete model</string>
+    <string name="model_ready">Model ready</string>
+    <string name="model_missing">No model installed — AI actions are disabled</string>
+    <string name="privacy_note">Everything runs on your device. Your text is never sent anywhere.</string>
+</resources>

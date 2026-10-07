@@ -1,0 +1,116 @@
+package com.merry8989.localaikeyboard.settings
+
+import android.content.Intent
+import android.os.Bundle
+import android.provider.Settings
+import android.view.Gravity
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.Button
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import com.merry8989.localaikeyboard.App
+
+/**
+ * The app's front door (it is also the launcher activity). Sets up the keyboard
+ * as the system IME and manages the on-device model.
+ */
+class SettingsActivity : AppCompatActivity() {
+
+    private lateinit var status: TextView
+    private lateinit var downloadBtn: Button
+    private lateinit var deleteBtn: Button
+
+    private val models get() = App.instance.modelManager
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(buildUi())
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refresh()
+    }
+
+    private fun buildUi(): View {
+        val root = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(24), dp(32), dp(24), dp(24))
+        }
+
+        root.addView(title("Local AI Keyboard"))
+        root.addView(body("An offline keyboard with on-device AI. Nothing you type ever leaves this phone."))
+
+        root.addView(section("Set up"))
+        root.addView(button("Enable keyboard") {
+            startActivity(Intent(Settings.ACTION_INPUT_METHOD_SETTINGS))
+        })
+        root.addView(button("Choose input method") {
+            getSystemService(InputMethodManager::class.java)?.showInputMethodPicker()
+        })
+
+        root.addView(section("On-device AI model"))
+        status = body("").apply { id = View.generateViewId() }
+        root.addView(status)
+
+        downloadBtn = button("Download model") {
+            val id = models.enqueueDownload()
+            if (id == -1L) {
+                toast("Set MODEL_URL in ModelManager.kt first.")
+            } else {
+                toast("Download started. Reopen this screen when it finishes.")
+            }
+        }
+        root.addView(downloadBtn)
+
+        deleteBtn = button("Delete model") {
+            models.delete()
+            refresh()
+            toast("Model deleted.")
+        }
+        root.addView(deleteBtn)
+
+        root.addView(section("Privacy"))
+        root.addView(body("• No INTERNET permission in the keyboard process.\n" +
+                "• No clipboard access, no analytics, no logging of your text.\n" +
+                "• The model is fetched once, by the system downloader, on your command."))
+
+        return root
+    }
+
+    private fun refresh() {
+        val installed = models.isInstalled()
+        status.text = if (installed) {
+            "Model installed — AI actions are available."
+        } else {
+            "No model installed — AI actions are disabled until you download one."
+        }
+        deleteBtn.isEnabled = installed
+    }
+
+    // ---- tiny view helpers ---------------------------------------------------
+
+    private fun title(t: String) = TextView(this).apply {
+        text = t; textSize = 24f; setPadding(0, 0, 0, dp(8))
+    }
+
+    private fun section(t: String) = TextView(this).apply {
+        text = t; textSize = 16f; setPadding(0, dp(20), 0, dp(8))
+    }
+
+    private fun body(t: String) = TextView(this).apply {
+        text = t; textSize = 15f; setPadding(0, 0, 0, dp(8))
+    }
+
+    private fun button(t: String, onClick: () -> Unit) = Button(this).apply {
+        text = t
+        gravity = Gravity.START
+        setOnClickListener { onClick() }
+    }
+
+    private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_SHORT).show()
+    private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+}

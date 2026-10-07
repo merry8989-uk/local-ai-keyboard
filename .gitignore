@@ -1,0 +1,20 @@
+*.iml
+.gradle
+/local.properties
+/.idea
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+*.apk
+*.aab
+*.keystore
+!debug.keystore
+# model weights are never committed
+*.task
+*.litertlm
+*.gguf
+*.bin
+models/
