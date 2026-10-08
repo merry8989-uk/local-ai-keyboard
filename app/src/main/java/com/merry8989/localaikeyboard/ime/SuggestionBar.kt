@@ -49,11 +49,11 @@ class SuggestionBar(
         object : GestureDetector.SimpleOnGestureListener() {
             override fun onFling(
                 e1: MotionEvent?,
-                e2: MotionEvent?,
+                e2: MotionEvent,
                 velocityX: Float,
                 velocityY: Float,
             ): Boolean {
-                if (e1 != null && e2 != null && e1.x - e2.x > dp(36)) {
+                if (e1 != null && e1.x - e2.x > dp(36)) {
                     listener.onSwipeMore()
                     return true
                 }
@@ -64,7 +64,6 @@ class SuggestionBar(
 
     init {
         isHorizontalScrollBarEnabled = false
-        fillViewport = false
         row.orientation = LinearLayout.HORIZONTAL
         row.gravity = Gravity.CENTER_VERTICAL
         addView(row, FrameLayout.LayoutParams(WRAP, MATCH))
