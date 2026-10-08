@@ -2,6 +2,7 @@ package com.merry8989.localaikeyboard.ime
 
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
+import android.text.InputType
 import android.text.SpannableString
 import android.text.style.ForegroundColorSpan
 import android.text.style.UnderlineSpan
@@ -29,14 +30,18 @@ import java.io.File
 /**
  * The keyboard. Wires everything together:
  *   KeyboardView  -> keys, themes, outlines, long-press alternates, backspace
- *   SuggestionBar -> candidates, next-word predictions + ✦
+ *   SuggestionBar -> the smart bar: ⋮ menu, word candidates, swipe-left similar words
+ *   SmartMenuPanel / TextFormatPanel / CalculatorPanel -> the ⋮ overflow, formatting, calc
  *   EmojiPanel / StickerPanel / ClipboardPanel / AiPanel -> the four side panels
  */
 class LocalAiInputMethodService :
     InputMethodService(),
     KeyboardView.Listener,
     SuggestionBar.Listener,
-    AiPanel.Listener {
+    AiPanel.Listener,
+    SmartMenuPanel.Listener,
+    TextFormatPanel.Listener,
+    CalculatorPanel.Listener {
 
     private lateinit var bridge: EditorBridge
     private lateinit var keyboardView: KeyboardView
@@ -46,6 +51,9 @@ class LocalAiInputMethodService :
     private lateinit var emojiPanel: EmojiPanel
     private lateinit var stickerPanel: StickerPanel
     private lateinit var clipboardPanel: ClipboardPanel
+    private lateinit var smartMenu: SmartMenuPanel
+    private lateinit var textFormat: TextFormatPanel
+    private lateinit var calculator: CalculatorPanel
     private lateinit var themePrefs: ThemePrefs
     private lateinit var stickerStore: StickerStore
 
@@ -53,6 +61,8 @@ class LocalAiInputMethodService :
     private var showingSymbols = false
     private var caps = false
     private var lastTopCandidate: String? = null
+    /** Set true after a swipe-left, so the strip asks for 30+ similar words. */
+    private var expandSuggestions = false
 
     private data class Correction(val original: String, val corrected: String)
     private var lastCorrection: Correction? = null
@@ -77,6 +87,9 @@ class LocalAiInputMethodService :
         suggestionBar = SuggestionBar(this, this).apply { setTheme(t) }
         altStrip = AlternateStrip(this) { char -> commitText(char) }
             .apply { visibility = View.GONE }
+        smartMenu = SmartMenuPanel(this, this).apply { visibility = View.GONE }
+        textFormat = TextFormatPanel(this, this).apply { visibility = View.GONE }
+        calculator = CalculatorPanel(this, this).apply { visibility = View.GONE }
         emojiPanel = EmojiPanel(this) { emoji -> commitText(emoji) }
             .apply { visibility = View.GONE }
         clipboardPanel = ClipboardPanel(this) { text -> pasteClip(text) }
@@ -97,6 +110,9 @@ class LocalAiInputMethodService :
             orientation = LinearLayout.VERTICAL
             addView(suggestionBar, LinearLayout.LayoutParams(MATCH_PARENT, dp(46)))
             addView(altStrip, LinearLayout.LayoutParams(MATCH_PARENT, dp(52)))
+            addView(smartMenu, LinearLayout.LayoutParams(MATCH_PARENT, dp(48)))
+            addView(textFormat, LinearLayout.LayoutParams(MATCH_PARENT, dp(48)))
+            addView(calculator, LinearLayout.LayoutParams(MATCH_PARENT, dp(250)))
             addView(emojiPanel, LinearLayout.LayoutParams(MATCH_PARENT, dp(200)))
             addView(clipboardPanel, LinearLayout.LayoutParams(MATCH_PARENT, dp(150)))
             addView(aiPanel, LinearLayout.LayoutParams(MATCH_PARENT, dp(150)))
@@ -110,6 +126,7 @@ class LocalAiInputMethodService :
         caps = false
         showingSymbols = false
         lastCorrection = null
+        expandSuggestions = false
         val t = theme
         suggestionBar.setTheme(t)
         keyboardView.theme = t
@@ -186,6 +203,7 @@ class LocalAiInputMethodService :
             KeyCode.STICKER -> toggleStickers()
             KeyCode.SETTINGS -> openSettings()
             KeyCode.CLIPBOARD -> toggleClipboard()
+            KeyCode.MENU -> toggleSmartMenu()
         }
     }
 
@@ -233,13 +251,64 @@ class LocalAiInputMethodService :
         bridge.commit("$text ")
         if (word.isNotEmpty()) lastCorrection = Correction(word, text)
         app.learnedStore.observeWord(prev, text)
+        expandSuggestions = false
         suggestionBar.setCandidates(emptyList())
         lastTopCandidate = null
     }
 
     override fun onAi() = openAi()
 
+    override fun onEmoji() = toggleEmoji()
+
     override fun onClipboard() = toggleClipboard()
+
+    override fun onMenu() = toggleSmartMenu()
+
+    override fun onSwipeMore() {
+        expandSuggestions = true
+        refreshSuggestions(delayMs = 0)
+    }
+
+    // ---- SmartMenuPanel.Listener --------------------------------------------
+
+    override fun onMenuSettings() {
+        hidePanels()
+        openSettings()
+    }
+
+    override fun onMenuLanguage() {
+        hidePanels()
+        cycleLanguage()
+    }
+
+    override fun onMenuEmoji() = toggleEmoji()
+
+    override fun onMenuClipboard() = toggleClipboard()
+
+    override fun onMenuFormat() = toggleFormat()
+
+    override fun onMenuCalculator() = toggleCalculator()
+
+    override fun onMenuDismiss() = smartMenu.hide()
+
+    // ---- TextFormatPanel.Listener -------------------------------------------
+
+    override fun onFormat(kind: FormatKind) = applyFormat(kind)
+
+    override fun onFormatDismiss() = textFormat.hide()
+
+    // ---- CalculatorPanel.Listener -------------------------------------------
+
+    override fun onInsertResult(result: String) {
+        if (result.isNotBlank() && result != "Error") {
+            bridge.finishComposing()
+            bridge.commit(result)
+        }
+        calculator.hide()
+        refreshSuggestions()
+    }
+
+    override fun onCalculatorDismiss() = calculator.hide()
 
     // ---- AiPanel.Listener ----------------------------------------------------
 
@@ -279,6 +348,27 @@ class LocalAiInputMethodService :
         emojiPanel.hide()
         stickerPanel.hide()
         clipboardPanel.hide()
+        smartMenu.hide()
+        textFormat.hide()
+        calculator.hide()
+    }
+
+    private fun toggleSmartMenu() {
+        val show = !smartMenu.isShowing()
+        hidePanels()
+        if (show) smartMenu.show(theme)
+    }
+
+    private fun toggleFormat() {
+        val show = !textFormat.isShowing()
+        hidePanels()
+        if (show) textFormat.show(theme)
+    }
+
+    private fun toggleCalculator() {
+        val show = !calculator.isShowing()
+        hidePanels()
+        if (show) calculator.show(theme)
     }
 
     private fun toggleEmoji() {
@@ -375,6 +465,7 @@ class LocalAiInputMethodService :
         // Learn what you actually use, for next-word prediction.
         if (finalWord.isNotEmpty()) app.learnedStore.observeWord(prev, finalWord)
 
+        expandSuggestions = false
         suggestionBar.setCandidates(emptyList())
         lastTopCandidate = null
         applyAutoCaps()
@@ -440,13 +531,59 @@ class LocalAiInputMethodService :
         refreshSuggestions(delayMs = 400)
     }
 
+    /** Apply a text transform to the selection, or to the word before the cursor. */
+    private fun applyFormat(kind: FormatKind) {
+        val selected = bridge.selectedTextOrNull()
+        val target = if (!selected.isNullOrEmpty()) selected else bridge.currentWordBeforeCursor()
+        if (target.isEmpty()) {
+            toast("Select some text or type a word first")
+            return
+        }
+        val out = when (kind) {
+            FormatKind.UPPER -> target.uppercase()
+            FormatKind.LOWER -> target.lowercase()
+            FormatKind.TITLE -> target.split(" ")
+                .joinToString(" ") { w -> w.replaceFirstChar { it.uppercase() } }
+            FormatKind.SENTENCE -> target.replaceFirstChar { it.uppercase() }
+            FormatKind.BULLET -> target.lines()
+                .joinToString("\n") { "\u2022 " + it.trimStart() }
+            FormatKind.NUMBERED -> target.lines()
+                .mapIndexed { i, l -> "${i + 1}. " + l.trimStart() }
+                .joinToString("\n")
+        }
+        if (!selected.isNullOrEmpty()) {
+            bridge.replaceSelection(out)
+        } else {
+            bridge.deleteBefore(target.length)
+            bridge.commit(out)
+        }
+        hidePanels()
+        refreshSuggestions()
+    }
+
+    /** Don't offer suggestions in numeric/phone/password fields. */
+    private fun shouldSuggest(): Boolean {
+        val type = bridge.inputType()
+        val cls = type and InputType.TYPE_MASK_CLASS
+        if (cls == InputType.TYPE_CLASS_NUMBER || cls == InputType.TYPE_CLASS_PHONE) return false
+        if (cls == InputType.TYPE_CLASS_TEXT) {
+            val variation = type and InputType.TYPE_MASK_VARIATION
+            if (variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+                variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+                variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD
+            ) return false
+        }
+        return true
+    }
+
     private fun refreshSuggestions(delayMs: Long = 120) {
-        val strip = themePrefs.suggestionStrip
+        val strip = themePrefs.suggestionStrip && shouldSuggest()
         suggestionBar.visibility = if (strip) View.VISIBLE else View.GONE
         suggestJob?.cancel()
         if (!strip) {
             suggestionBar.setCandidates(emptyList())
             lastTopCandidate = null
+            expandSuggestions = false
             return
         }
         suggestJob = scope.launch {
@@ -454,6 +591,7 @@ class LocalAiInputMethodService :
             val word = bridge.currentWordBeforeCursor()
             if (word.isEmpty()) {
                 // No partial word: predict the next word from what you've used.
+                expandSuggestions = false
                 if (!themePrefs.nextWordSuggestions && !themePrefs.smartCompose) {
                     suggestionBar.setCandidates(emptyList())
                     lastTopCandidate = null
@@ -475,8 +613,10 @@ class LocalAiInputMethodService :
                 lastTopCandidate = null
                 return@launch
             }
+            val expanded = expandSuggestions
             var results = withContext(Dispatchers.Default) {
-                app.spellEngine.suggest(word, language)
+                if (expanded) app.spellEngine.suggestMany(word, language, limit = 40)
+                else app.spellEngine.suggest(word, language)
             }
             if (themePrefs.blockOffensive) results = app.spellEngine.filterOffensive(results)
             suggestionBar.setCandidates(results)

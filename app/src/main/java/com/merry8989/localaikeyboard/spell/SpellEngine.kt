@@ -54,13 +54,23 @@ class SpellEngine(
         return SymSpell(maxEditDistance = 2, prefixLength = 7).also { it.createDictionary(entries) }
     }
 
-    /** Ranked suggestions for the word currently being typed. */
-    fun suggest(word: String, mode: LanguageMode): List<String> {
+    /** Ranked suggestions for the word currently being typed (top 3 for the strip). */
+    fun suggest(word: String, mode: LanguageMode): List<String> =
+        suggestMany(word, mode, limit = 3)
+
+    /**
+     * Many ranked suggestions for the word being typed — used by the swipe-left
+     * "similar words" view, which wants at least 30. Ranking mirrors [suggest]:
+     * edit-distance neighbours from the SymSpell index, phonetic Hinglish
+     * matches, the user's own dictionary, and exact transliteration first.
+     */
+    fun suggestMany(word: String, mode: LanguageMode, limit: Int = 40): List<String> {
         val w = word.lowercase()
         if (w.isBlank()) return emptyList()
 
         val results = LinkedHashMap<String, Double>()
-        for (s in sym.lookup(w, maxEdit = 2, limit = 12)) {
+        // A wide lookup so we can surface 30+ neighbours, not just the best 12.
+        for (s in sym.lookup(w, maxEdit = 2, limit = 300)) {
             if (s.term == w) continue
             var score = s.count.toDouble() - s.distance * 500_000.0
             if (mode == LanguageMode.HINGLISH && hinglish.contains(s.term)) score += 2_000_000
@@ -84,6 +94,13 @@ class SpellEngine(
             }
         }
 
+        // Prefix matches help reach 30+ when the index is thin.
+        for ((term, _) in userDict.all()) {
+            if (term.length > w.length && term.startsWith(w) && term != w) {
+                results.putIfAbsent(term, 1000.0)
+            }
+        }
+
         val ranked = results.entries
             .sortedByDescending { it.value }
             .map { matchCase(word, it.key) }
@@ -93,7 +110,7 @@ class SpellEngine(
         val native = translit[w]
         val finalList = if (native != null) listOf(native) + ranked else ranked
 
-        return finalList.distinct().take(3)
+        return finalList.distinct().take(limit)
     }
 
     /**

@@ -72,6 +72,9 @@ class EditorBridge(private val service: android.inputmethodservice.InputMethodSe
         return before.substringAfterLast('.', before).trim()
     }
 
+    /** The current selection, or null/empty when nothing is selected. */
+    fun selectedTextOrNull(): String? = ic?.getSelectedText(0)?.toString()
+
     /** Replace the current selection (or insert at cursor) with [text]. */
     fun replaceSelection(text: String) {
         val conn = ic ?: return

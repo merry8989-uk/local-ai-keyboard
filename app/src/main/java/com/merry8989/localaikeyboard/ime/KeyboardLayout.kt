@@ -2,7 +2,7 @@ package com.merry8989.localaikeyboard.ime
 
 /** What a key does when tapped. */
 enum class KeyCode {
-    CHAR, SHIFT, BACKSPACE, ENTER, SPACE, SYMBOLS, LANG, AI, EMOJI, STICKER, SETTINGS, CLIPBOARD
+    CHAR, SHIFT, BACKSPACE, ENTER, SPACE, SYMBOLS, LANG, AI, EMOJI, STICKER, SETTINGS, CLIPBOARD, MENU
 }
 
 /**
@@ -37,10 +37,11 @@ object KeyboardLayout {
         }
         return listOf(
             KeyDef(left, code = KeyCode.SYMBOLS, weight = 1.25f, isSpecial = true),
-            KeyDef("हि", code = KeyCode.LANG, weight = 0.85f, isSpecial = true),
+            // Settings and Language now live in the ⋮ smart-bar menu, so the
+            // action row carries a single ⋮ menu key instead of the old ⚙ + हि.
+            KeyDef("⋮", code = KeyCode.MENU, weight = 0.85f, isSpecial = true),
             KeyDef("✦", code = KeyCode.AI, weight = 0.85f, isSpecial = true),
             KeyDef("☺", code = KeyCode.EMOJI, weight = 0.85f, isSpecial = true),
-            KeyDef("⚙", code = KeyCode.SETTINGS, weight = 0.85f, isSpecial = true),
             KeyDef("space", output = " ", code = KeyCode.SPACE, weight = 3.25f),
             punct,
             KeyDef("↵", code = KeyCode.ENTER, weight = 1.25f, isSpecial = true),
