@@ -37,8 +37,9 @@ class LanguagesActivity : AppCompatActivity() {
             text = "Languages"; textSize = 22f; setPadding(0, 0, 0, dp(8))
         })
         root.addView(TextView(this).apply {
-            text = "English is on by default and always enabled. Turn on more languages " +
-                "to include their words in suggestions. Everything is stored on this device."
+            text = "English is on by default and always enabled. Hindi and Hinglish are built in " +
+                "too — turn them on to include their words in suggestions. Everything is " +
+                "stored on this device, and nothing is downloaded."
             textSize = 14f
             setPadding(0, 0, 0, dp(12))
         })
@@ -46,8 +47,8 @@ class LanguagesActivity : AppCompatActivity() {
         for (pack in LanguagePacks.all) root.addView(row(pack))
 
         root.addView(TextView(this).apply {
-            text = "More languages can be added by dropping a word list into the app's " +
-                "assets folder, or by pointing a language pack at a hosted list to download."
+            text = "Hindi works by transliteration: type the Roman form (for example \"namaste\") " +
+                "and the Devanagari word is suggested."
             textSize = 13f
             setPadding(0, dp(16), 0, 0)
         })
@@ -66,8 +67,8 @@ class LanguagesActivity : AppCompatActivity() {
         col.addView(TextView(this).apply {
             text = when {
                 pack.alwaysOn -> "Built in · always on"
+                pack.isTranslit -> "Built in · transliteration"
                 pack.isBundled -> "Built in"
-                pack.isDownloadable -> "Downloadable"
                 else -> "Not available"
             }
             textSize = 13f
@@ -76,7 +77,7 @@ class LanguagesActivity : AppCompatActivity() {
 
         c.addView(SwitchCompat(this).apply {
             isChecked = prefs.enabledLanguages.contains(pack.id)
-            isEnabled = !pack.alwaysOn && (pack.isBundled || pack.isDownloadable)
+            isEnabled = !pack.alwaysOn && pack.isBundled
             setOnCheckedChangeListener { _, checked ->
                 val current = prefs.enabledLanguages.toMutableSet()
                 if (checked) current.add(pack.id) else current.remove(pack.id)

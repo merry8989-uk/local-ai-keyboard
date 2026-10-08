@@ -2,12 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
-      INTERNET is used ONLY by the in-app downloader for model and language
-      packs, which run when you explicitly tap Download. The keyboard itself
-      never sends what you type anywhere: no telemetry, no accounts, no cloud.
-      The app stores its state in app-private files on the device.
+      NO network permissions at all. This app never uses the internet: the
+      keyboard, its dictionary, the built-in text helper and all settings run
+      entirely on the device. There is nothing to download.
     -->
-    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".App"

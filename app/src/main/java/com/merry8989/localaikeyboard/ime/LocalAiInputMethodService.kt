@@ -239,6 +239,8 @@ class LocalAiInputMethodService :
 
     override fun onAi() = openAi()
 
+    override fun onClipboard() = toggleClipboard()
+
     // ---- AiPanel.Listener ----------------------------------------------------
 
     override fun onAction(action: AiAction) {
@@ -247,14 +249,9 @@ class LocalAiInputMethodService :
             aiPanel.setStatus("Type or select some text first.")
             return
         }
-        aiPanel.setStatus("Thinking… (on-device)")
+        aiPanel.setStatus("Working… (on-device)")
         scope.launch {
             val controller = app.aiController
-            controller.ensureLoaded()
-            if (!controller.isReady) {
-                aiPanel.setStatus("No model installed. Open the app's Settings to download one.")
-                return@launch
-            }
             val builder = StringBuilder()
             try {
                 controller.run(action, input, language).collect { token ->

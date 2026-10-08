@@ -6,43 +6,26 @@ import android.provider.Settings
 import android.view.Gravity
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
-import androidx.lifecycle.lifecycleScope
-import com.merry8989.localaikeyboard.App
 import com.merry8989.localaikeyboard.ime.ThemePrefs
-import kotlinx.coroutines.launch
 
 /**
- * The hub: Set up, an AI model section with real download progress, then
- * categories (Languages, Theme, Keyboard, Typing, Gestures, Clipboard, Emoji,
- * Personal dictionary, Stickers, About).
+ * The hub. Everything here is on-device: there is nothing to download and the
+ * app requests no network permission.
  */
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var prefs: ThemePrefs
-    private lateinit var status: TextView
-    private lateinit var progress: ProgressBar
-    private var downloading = false
-
-    private val models get() = App.instance.modelManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         prefs = ThemePrefs(this)
-        models.clearPartials()
         setContentView(buildUi())
-    }
-
-    override fun onResume() {
-        super.onResume()
-        status.text = statusText()
     }
 
     private fun buildUi(): View {
@@ -52,7 +35,7 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         root.addView(heading("Local AI Keyboard"))
-        root.addView(sub("An offline keyboard with on-device AI. Your typing stays on this phone."))
+        root.addView(sub("An offline keyboard. Your typing stays on this phone."))
 
         // ---- Set up
         root.addView(section("Set up"))
@@ -63,38 +46,23 @@ class SettingsActivity : AppCompatActivity() {
             getSystemService(InputMethodManager::class.java)?.showInputMethodPicker()
         })
 
-        // ---- Model (with progress)
-        root.addView(section("On-device AI model"))
-        status = sub(statusText())
-        root.addView(status)
-        progress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
-            max = 100
-            visibility = View.GONE
-        }
-        root.addView(progress, LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT
+        // ---- Built-in AI
+        root.addView(section("Built-in AI"))
+        root.addView(sub(
+            "Ready to use — nothing to download. The ✦ actions (Fix, Rephrase, Continue, " +
+                "Email, Essay, Message) run entirely on the device using a lightweight " +
+                "built-in text engine, not a cloud service."
         ))
-        for (spec in ModelManager.AVAILABLE) {
-            root.addView(button("Download ${spec.name} (${spec.approxLabel})") {
-                startDownload(spec)
-            })
-        }
-        root.addView(button("Delete downloaded models") {
-            var n = 0
-            for (spec in ModelManager.AVAILABLE) if (models.delete(spec)) n++
-            status.text = statusText()
-            toast("Deleted $n model(s).")
-        })
 
         // ---- Categories
         root.addView(section("Settings"))
-        root.addView(row("Languages", "English on by default") {
+        root.addView(row("Languages", "English on by default, Hindi built in") {
             startActivity(Intent(this, LanguagesActivity::class.java))
         })
         root.addView(row("Theme", "Pick from 24 built-in themes") {
             startActivity(Intent(this, ThemeActivity::class.java))
         })
-        root.addView(row("Keyboard", "Key outlines, corners, height") {
+        root.addView(row("Keyboard", "Number row, outlines, key size") {
             startActivity(Intent(this, KeyboardSettingsActivity::class.java))
         })
         root.addView(row("Corrections and suggestions", "Spell check, grammar, suggestions") {
@@ -106,11 +74,11 @@ class SettingsActivity : AppCompatActivity() {
             info("Hold ⌫ to keep deleting. Swipe left on ⌫ to delete a whole word.")
         })
         root.addView(row("Clipboard", "Paste what you copied") {
-            info("Tap ✦ to open AI actions; long-press ✦ for the clipboard. History is kept in memory only.")
+            info("Tap the 📋 button in the suggestion bar to paste. History is kept in memory only.")
         })
         root.addView(toggle("Clipboard history", prefs.clipboardHistory) { prefs.clipboardHistory = it })
         root.addView(row("Emoji", "Tap ☺ on the keyboard") {
-            info("Tap ☺ for prebuilt emoji — they insert into any text field. Long-press ☺ for stickers & media.")
+            info("Tap ☺ for prebuilt emoji. Long-press ☺ for stickers & media.")
         })
         root.addView(row("Personal dictionary", "Words learned on this device") {
             startActivity(Intent(this, DictionaryActivity::class.java))
@@ -120,50 +88,9 @@ class SettingsActivity : AppCompatActivity() {
         })
 
         root.addView(section("About"))
-        root.addView(sub("Local AI Keyboard 0.4.0 — offline by design. No accounts, no telemetry."))
-        root.addView(sub("The network is used only when you tap Download for a model or language pack."))
+        root.addView(sub("Local AI Keyboard 0.8.0 — fully offline. No accounts, no telemetry, no network."))
 
         return ScrollView(this).apply { addView(root) }
-    }
-
-    private fun startDownload(spec: ModelSpec) {
-        if (downloading) {
-            toast("A download is already running.")
-            return
-        }
-        downloading = true
-        progress.visibility = View.VISIBLE
-        progress.progress = 0
-        status.text = "Starting download of ${spec.name}…"
-
-        lifecycleScope.launch {
-            val result = models.download(spec) { pct ->
-                runOnUiThread {
-                    progress.progress = pct
-                    status.text = "Downloading ${spec.name}: $pct%"
-                }
-            }
-            downloading = false
-            progress.visibility = View.GONE
-            result
-                .onSuccess {
-                    status.text = statusText()
-                    toast("${spec.name} downloaded — AI actions are ready.")
-                }
-                .onFailure { e ->
-                    status.text = "Download failed: ${e.message}"
-                    toast("Download failed — see the message above.")
-                }
-        }
-    }
-
-    private fun statusText(): String {
-        val installed = models.installedSpec()
-        return if (installed != null) {
-            "Model ready: ${installed.name}. AI actions are available."
-        } else {
-            "No model installed — AI actions are disabled until you download one."
-        }
     }
 
     // ---- view helpers --------------------------------------------------------
@@ -180,7 +107,7 @@ class SettingsActivity : AppCompatActivity() {
         text = t; textSize = 14f; setPadding(0, 0, 0, dp(8))
     }
 
-    private fun button(t: String, onClick: () -> Unit) = Button(this).apply {
+    private fun button(t: String, onClick: () -> Unit) = android.widget.Button(this).apply {
         text = t; gravity = Gravity.START; setOnClickListener { onClick() }
     }
 
@@ -213,6 +140,5 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun info(body: String) = Toast.makeText(this, body, Toast.LENGTH_LONG).show()
 
-    private fun toast(m: String) = Toast.makeText(this, m, Toast.LENGTH_SHORT).show()
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 }

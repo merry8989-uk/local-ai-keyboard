@@ -40,9 +40,8 @@ object KeyboardLayout {
             KeyDef("हि", code = KeyCode.LANG, weight = 0.85f, isSpecial = true),
             KeyDef("✦", code = KeyCode.AI, weight = 0.85f, isSpecial = true),
             KeyDef("☺", code = KeyCode.EMOJI, weight = 0.85f, isSpecial = true),
-            KeyDef("📋", code = KeyCode.CLIPBOARD, weight = 0.85f, isSpecial = true),
             KeyDef("⚙", code = KeyCode.SETTINGS, weight = 0.85f, isSpecial = true),
-            KeyDef("space", output = " ", code = KeyCode.SPACE, weight = 2.4f),
+            KeyDef("space", output = " ", code = KeyCode.SPACE, weight = 3.25f),
             punct,
             KeyDef("↵", code = KeyCode.ENTER, weight = 1.25f, isSpecial = true),
         )

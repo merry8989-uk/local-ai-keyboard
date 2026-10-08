@@ -13,7 +13,6 @@ android {
     //   2. The committed debug keystore (app/debug.p12). Every build shares this
     //      one key, so new APKs install OVER the old app with no uninstall.
     //      It is a DEBUG key: public by design, never use it for a release build.
-    //   3. AGP's default, freshly-generated debug key (varies per machine).
     val envKeystorePath = System.getenv("KEYSTORE_FILE")
         ?: project.findProperty("KEYSTORE_FILE")?.toString()
     val envKeystoreFile = envKeystorePath?.takeIf { it.isNotBlank() }?.let { file(it) }
@@ -49,13 +48,9 @@ android {
         applicationId = "com.merry8989.localaikeyboard"
         minSdk = 29
         targetSdk = 34
-        versionCode = 7
-        versionName = "0.7.0"
-
-        // arm64 only: the on-device LLM runtime is 64-bit.
-        ndk {
-            abiFilters += listOf("arm64-v8a")
-        }
+        versionCode = 8
+        versionName = "0.8.0"
+        // Pure Kotlin/Java: no native libraries, so every ABI is supported.
     }
 
     buildTypes {
@@ -88,11 +83,6 @@ android {
         viewBinding = true
     }
 
-    // Keep model bundles uncompressed when they are ever bundled as assets.
-    androidResources {
-        noCompress += listOf("task", "litertlm", "gguf")
-    }
-
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
@@ -109,10 +99,6 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
-
-    // On-device LLM runtime (Gemma / Qwen / Phi via the MediaPipe LLM Inference API).
-    implementation("com.google.mediapipe:tasks-genai:0.10.24")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")

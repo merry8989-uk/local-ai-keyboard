@@ -9,8 +9,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 
 /**
- * The strip above the keys: up to three word candidates plus the ✦ AI button.
- * Dumb view — it renders whatever it is handed and reports taps.
+ * The strip above the keys: up to three word candidates, plus the 📋 clipboard
+ * button and the ✦ built-in AI button.
  */
 class SuggestionBar(
     context: Context,
@@ -20,9 +20,11 @@ class SuggestionBar(
     interface Listener {
         fun onCandidate(text: String)
         fun onAi()
+        fun onClipboard()
     }
 
     private val slots = mutableListOf<TextView>()
+    private lateinit var clipboardButton: TextView
     private lateinit var aiButton: TextView
     private var lastCandidates: List<String> = emptyList()
     private var theme: KeyboardTheme = ThemeRepository.default
@@ -41,16 +43,24 @@ class SuggestionBar(
             addView(tv, LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
             slots += tv
         }
-        aiButton = TextView(context).apply {
-            text = "✦"
-            gravity = Gravity.CENTER
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
-            isClickable = true
-            setOnClickListener { listener.onAi() }
-        }
-        addView(aiButton, LayoutParams(dp(48), LayoutParams.MATCH_PARENT))
+
+        clipboardButton = actionButton("📋") { listener.onClipboard() }
+        addView(clipboardButton, LayoutParams(dp(44), LayoutParams.MATCH_PARENT))
+
+        aiButton = actionButton("✦") { listener.onAi() }
+        addView(aiButton, LayoutParams(dp(44), LayoutParams.MATCH_PARENT))
+
         applyTheme()
     }
+
+    private fun actionButton(label: String, onClick: () -> Unit): TextView =
+        TextView(context).apply {
+            text = label
+            gravity = Gravity.CENTER
+            setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
+            isClickable = true
+            setOnClickListener { onClick() }
+        }
 
     fun setTheme(theme: KeyboardTheme) {
         this.theme = theme
@@ -60,6 +70,7 @@ class SuggestionBar(
     private fun applyTheme() {
         setBackgroundColor(theme.specialKeyBackground)
         for (tv in slots) tv.setTextColor(theme.keyText)
+        clipboardButton.setTextColor(theme.keyText)
         aiButton.setTextColor(theme.accent)
     }
 

@@ -21,10 +21,21 @@ class SpellEngine(
 
     private val hinglish = HinglishLexicon(context)
     private var sym: SymSpell = buildIndex()
+    private var translit: Map<String, String> = buildTranslit()
 
     /** Rebuild the dictionary after the enabled languages change. */
     fun reload() {
         sym = buildIndex()
+        translit = buildTranslit()
+    }
+
+    private fun buildTranslit(): Map<String, String> {
+        val out = HashMap<String, String>()
+        for (pack in LanguagePacks.all) {
+            if (pack.id !in prefs.enabledLanguages) continue
+            out.putAll(LanguagePacks.loadTranslit(context, pack))
+        }
+        return out
     }
 
     fun enabledLanguages(): Set<String> = prefs.enabledLanguages
@@ -73,11 +84,16 @@ class SpellEngine(
             }
         }
 
-        return results.entries
+        val ranked = results.entries
             .sortedByDescending { it.value }
             .map { matchCase(word, it.key) }
             .distinct()
-            .take(3)
+
+        // An exact transliteration match (e.g. "namaste" -> नमस्ते) leads.
+        val native = translit[w]
+        val finalList = if (native != null) listOf(native) + ranked else ranked
+
+        return finalList.distinct().take(3)
     }
 
     /**
