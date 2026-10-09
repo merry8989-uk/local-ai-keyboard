@@ -62,7 +62,7 @@ class SettingsActivity : AppCompatActivity() {
         root.addView(row("Theme", "Pick from 24 built-in themes") {
             startActivity(Intent(this, ThemeActivity::class.java))
         })
-        root.addView(row("Keyboard", "Number row, outlines, key size") {
+        root.addView(row("Keyboard", "Number row, key size") {
             startActivity(Intent(this, KeyboardSettingsActivity::class.java))
         })
         root.addView(row("Corrections and suggestions", "Spell check, grammar, suggestions") {

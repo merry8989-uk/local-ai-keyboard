@@ -76,11 +76,6 @@ class KeyboardSettingsActivity : AppCompatActivity() {
         // ---- appearance
         root.addView(section("Appearance"))
         root.addView(slider("Corner radius", 0, 24, prefs.cornerRadiusDp, " dp") { prefs.cornerRadiusDp = it })
-        root.addView(slider("Outline width", 0, 4, prefs.outlineWidthDp, " dp") { prefs.outlineWidthDp = it })
-        root.addView(TextView(this).apply {
-            text = "Outline colour"; textSize = 16f; setPadding(0, dp(12), 0, dp(4))
-        })
-        root.addView(swatches())
 
         root.addView(Button(this).apply {
             text = "Reset to defaults"
@@ -143,40 +138,6 @@ class KeyboardSettingsActivity : AppCompatActivity() {
             })
         })
         return c
-    }
-
-    private fun swatches(): View {
-        val row = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            setPadding(0, dp(4), 0, dp(12))
-        }
-        val colors = listOf(
-            0x00000000,
-            0xFFFFFFFF.toInt(),
-            0xFF000000.toInt(),
-            0xFFFF6B35.toInt(),
-            0xFF38BDF8.toInt(),
-            0xFF4ADE80.toInt(),
-            0xFFFF2E97.toInt(),
-            0xFFF59E0B.toInt(),
-        )
-        for (col in colors) {
-            val selected = prefs.outlineColor == col
-            row.addView(View(this).apply {
-                background = GradientDrawable().apply {
-                    setColor(col)
-                    cornerRadius = dp(6).toFloat()
-                    setStroke(dp(if (selected) 3 else 1), if (selected) 0xFFFFFFFF.toInt() else 0x66FFFFFF)
-                }
-                isClickable = true
-                setOnClickListener {
-                    prefs.outlineColor = col
-                    if (col != 0 && prefs.outlineWidthDp == 0) prefs.outlineWidthDp = 2
-                    recreate()
-                }
-            }, LinearLayout.LayoutParams(dp(36), dp(36)).apply { setMargins(dp(4), 0, dp(4), 0) })
-        }
-        return row
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()

@@ -245,7 +245,8 @@ class KeyboardView(
         GradientDrawable().apply {
             setColor(color)
             cornerRadius = dp(keyStyle.cornerRadiusDp).toFloat()
-            if (keyStyle.hasOutline) setStroke(dp(keyStyle.outlineWidthDp), keyStyle.outlineColor)
+            // Keys are drawn as plain filled shapes - no outline/border - so they
+            // read only by colour, like a normal keyboard.
         }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
