@@ -9,7 +9,9 @@ import android.widget.TextView
 
 /**
  * Inline calculator: punch in an expression while you write, see the live
- * result, and Insert it straight into the chat / editor.
+ * result, and Insert it straight into the chat / editor. While it is open the
+ * keyboard is hidden (the service swaps them); the ⌨ key here returns to the
+ * keyboard.
  */
 class CalculatorPanel(
     context: Context,
@@ -51,7 +53,8 @@ class CalculatorPanel(
         }
 
         val footer = LinearLayout(context).apply { orientation = HORIZONTAL }
-        footer.addView(key("\u2715"), LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
+        // ⌨ returns to the keyboard (hides the calculator).
+        footer.addView(key("\u2328"), LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
         footer.addView(key("="), LayoutParams(0, LayoutParams.MATCH_PARENT, 1f))
         footer.addView(key("Insert"), LayoutParams(0, LayoutParams.MATCH_PARENT, 2f))
         addView(footer, LayoutParams(LayoutParams.MATCH_PARENT, dp(44)))
@@ -72,7 +75,7 @@ class CalculatorPanel(
             "\u232B" -> { if (expr.isNotEmpty()) expr = expr.dropLast(1); update() }
             "=" -> evaluate()
             "Insert" -> listener.onInsertResult(display.text.toString())
-            "\u2715" -> listener.onCalculatorDismiss()
+            "\u2328" -> listener.onCalculatorDismiss()
             else -> { expr += label; update() }
         }
     }

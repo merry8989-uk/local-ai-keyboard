@@ -304,11 +304,11 @@ class LocalAiInputMethodService :
             bridge.finishComposing()
             bridge.commit(result)
         }
-        calculator.hide()
+        hideCalculator()
         refreshSuggestions()
     }
 
-    override fun onCalculatorDismiss() = calculator.hide()
+    override fun onCalculatorDismiss() = hideCalculator()
 
     // ---- AiPanel.Listener ----------------------------------------------------
 
@@ -350,7 +350,7 @@ class LocalAiInputMethodService :
         clipboardPanel.hide()
         smartMenu.hide()
         textFormat.hide()
-        calculator.hide()
+        hideCalculator()
     }
 
     private fun toggleSmartMenu() {
@@ -366,9 +366,24 @@ class LocalAiInputMethodService :
     }
 
     private fun toggleCalculator() {
-        val show = !calculator.isShowing()
+        if (calculator.isShowing()) {
+            hideCalculator()
+            return
+        }
         hidePanels()
-        if (show) calculator.show(theme)
+        showCalculator()
+    }
+
+    /** Calculator replaces the keyboard: hide the keys while it is open. */
+    private fun showCalculator() {
+        keyboardView.visibility = View.GONE
+        calculator.show(theme)
+    }
+
+    /** Bring the keyboard back and close the calculator. */
+    private fun hideCalculator() {
+        calculator.hide()
+        keyboardView.visibility = View.VISIBLE
     }
 
     private fun toggleEmoji() {
