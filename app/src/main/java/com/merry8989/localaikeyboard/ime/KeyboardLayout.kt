@@ -37,10 +37,8 @@ object KeyboardLayout {
         }
         return listOf(
             KeyDef(left, code = KeyCode.SYMBOLS, weight = 1.25f, isSpecial = true),
-            // Settings and Language now live in the ⋮ smart-bar menu, so the
-            // action row carries a single ⋮ menu key instead of the old ⚙ + हि.
-            KeyDef("⋮", code = KeyCode.MENU, weight = 0.85f, isSpecial = true),
-            KeyDef("✦", code = KeyCode.AI, weight = 0.85f, isSpecial = true),
+            // The ⋮ menu and ✦ AI now live only in the suggestion bar above, so
+            // the action row keeps just the emoji key.
             KeyDef("☺", code = KeyCode.EMOJI, weight = 0.85f, isSpecial = true),
             KeyDef("space", output = " ", code = KeyCode.SPACE, weight = 3.25f),
             punct,

@@ -48,8 +48,8 @@ android {
         applicationId = "com.merry8989.localaikeyboard"
         minSdk = 29
         targetSdk = 34
-        versionCode = 9
-        versionName = "0.9.0"
+        versionCode = 10
+        versionName = "0.9.1"
         // Pure Kotlin/Java: no native libraries, so every ABI is supported.
     }
 
