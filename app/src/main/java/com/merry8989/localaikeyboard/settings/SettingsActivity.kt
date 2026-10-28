@@ -161,47 +161,47 @@ class SettingsActivity : AppCompatActivity() {
         ExploreApp(
             name = "Chronos",
             tagline = "Exact alarms with holiday skipping, world clock, timer presets, lap stopwatch",
-            url = "https://merry8989-uk.github.io/chronos-clock/",
+            url = "https://github.com/merry8989-uk/chronos-clock/releases/latest/download/app-release.apk",
         ),
         ExploreApp(
             name = "Universal AI Calculator",
             tagline = "Standard, scientific, unit converter, programmer, date tools + 47 calculators",
-            url = "https://merry8989-uk.github.io/universal-ai-calculator/",
+            url = "https://github.com/merry8989-uk/universal-ai-calculator/releases/latest/download/app-release.apk",
         ),
         ExploreApp(
             name = "ProGallery",
             tagline = "Full-featured gallery: MediaStore indexing, duplicate detection, photo/video editing",
-            url = "https://github.com/merry8989-uk/pro-gallery-android",
+            url = "https://github.com/merry8989-uk/pro-gallery-android/releases/download/v1.60.0/pro-gallery-debug.apk",
         ),
         ExploreApp(
             name = "Kavach",
             tagline = "Indian-first AI caller ID, smart blocking, call recording, AI call assistant",
-            url = "https://merry8989-uk.github.io/kavach/",
+            url = "https://github.com/merry8989-uk/kavach/releases/download/v1.1.0/kavach-1.1.0.apk",
         ),
         ExploreApp(
             name = "Low Distraction Launcher",
             tagline = "Minimal text-only launcher, no icons, no feeds, no internet access",
-            url = "https://merry8989-uk.github.io/lowdistraction-launcher/",
+            url = "https://github.com/merry8989-uk/lowdistraction-launcher/releases/download/v1.39/lowdistraction-v1.39.apk",
         ),
         ExploreApp(
             name = "FloatScript",
             tagline = "Transparent floating teleprompter for Android",
-            url = "https://github.com/merry8989-uk/floatscript",
+            url = "https://github.com/merry8989-uk/floatscript/releases/download/v1.3.0/FloatScript-v1.3.0.apk",
         ),
         ExploreApp(
             name = "Camara",
             tagline = "Camera + editor: filters, stickers, beauty tools, teleprompter, image & video editing",
-            url = "https://merry8989-uk.github.io/camara-app/",
+            url = "https://github.com/merry8989-uk/camara-app/releases/download/1.11.0/camara-1.11.0.apk",
         ),
         ExploreApp(
             name = "Powerbase",
             tagline = "Self-hosted diagnostics client: dashboards, log explorer, crash groups, devices, alerts",
-            url = "https://merry8989-uk.github.io/powerbase-app/",
+            url = "https://github.com/merry8989-uk/powerbase-app/releases/latest/download/app-release.apk",
         ),
         ExploreApp(
             name = "Arrow Puzzle Advanced",
             tagline = "12,000 guaranteed-solvable arrow puzzles (6,000 Classic + 6,000 Escape)",
-            url = "https://raw.githubusercontent.com/merry8989-uk/arrow-puzzle-advanced/main/dist/ArrowPuzzleAdvanced-5.11.apk",
+            url = "https://github.com/merry8989-uk/arrow-puzzle-advanced/releases/download/v5.11/ArrowPuzzleAdvanced-5.11.apk",
         ),
         ExploreApp(
             name = "New Arrow Puzzle",
@@ -211,7 +211,7 @@ class SettingsActivity : AppCompatActivity() {
         ExploreApp(
             name = "PDF Toolkit",
             tagline = "Merge, split, rotate, watermark, convert, protect PDFs in the browser. No uploads",
-            url = "https://merry8989-uk.github.io/pdf-toolkit/",
+            url = "https://github.com/merry8989-uk/pdf-toolkit/releases/latest/download/pdf-toolkit-1.1.0.apk",
         ),
         ExploreApp(
             name = "Doc Viewer & Editor",
@@ -246,7 +246,7 @@ class SettingsActivity : AppCompatActivity() {
         ExploreApp(
             name = "USB Screen Mirror",
             tagline = "Low-latency Android-to-Windows USB mirroring, scrcpy wrapper with GUI",
-            url = "https://github.com/merry8989-uk/usb-screen-mirror",
+            url = "https://github.com/merry8989-uk/usb-screen-mirror/releases/latest/download/PhoneMirrorServer.apk",
         ),
         ExploreApp(
             name = "Sangam",
